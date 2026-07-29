@@ -1,0 +1,9 @@
+{
+  "name": "sentra-ai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sentra AI — a Gemini-powered chat assistant, deployable for free on Vercel.",
+  "engines": {
+    "node": ">=18"
+  }
+}

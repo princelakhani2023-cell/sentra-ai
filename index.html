@@ -1,0 +1,1215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sentra AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-app: #0a0d18;
+    --bg-sidebar: #0d1120;
+    --bg-panel: #12162a;
+    --bg-panel-hover: #181d38;
+    --bg-bubble-user: #1c2140;
+    --bg-code: #0a0e1c;
+    --border: #23284a;
+    --text-primary: #eceefb;
+    --text-muted: #8b90b0;
+    --text-faint: #565c85;
+    --aurora-1: #8b5cf6;
+    --aurora-2: #2dd4bf;
+    --aurora-3: #ec4899;
+    --aurora-4: #fb923c;
+    --radius: 16px;
+    --msg-font-size: 14.5px;
+  }
+  html[data-theme="light"]{
+    --bg-app: #f4f5fb;
+    --bg-sidebar: #ffffff;
+    --bg-panel: #f0f1f9;
+    --bg-panel-hover: #e7e9f6;
+    --bg-bubble-user: #eceffa;
+    --bg-code: #1a1e30;
+    --border: #dfe2f2;
+    --text-primary: #1a1d2e;
+    --text-muted: #5c6080;
+    --text-faint: #9a9eba;
+  }
+  html[data-theme="light"] .ambient{ opacity:0.5; }
+  html[data-theme="light"] .topbar{ background:rgba(244,245,251,0.75); }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    font-family:'Inter', sans-serif;
+    background:var(--bg-app);
+    color:var(--text-primary);
+    overflow:hidden;
+  }
+  ::-webkit-scrollbar{width:8px; height:8px;}
+  ::-webkit-scrollbar-thumb{background:#262c50; border-radius:8px;}
+  ::-webkit-scrollbar-thumb:hover{background:#333a6b;}
+  ::-webkit-scrollbar-track{background:transparent;}
+
+  /* ---------- background ambience ---------- */
+  .ambient{ position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden; }
+  .blob{ position:absolute; border-radius:50%; filter:blur(90px); opacity:0.35; animation:drift 22s ease-in-out infinite; }
+  .blob.b1{width:480px; height:480px; background:var(--aurora-1); top:-140px; left:-100px; animation-duration:26s;}
+  .blob.b2{width:420px; height:420px; background:var(--aurora-2); bottom:-160px; left:30%; animation-duration:30s; animation-delay:-6s;}
+  .blob.b3{width:380px; height:380px; background:var(--aurora-3); top:20%; right:-140px; animation-duration:24s; animation-delay:-12s;}
+  @keyframes drift{ 0%,100%{ transform:translate(0,0) scale(1); } 33%{ transform:translate(40px,-30px) scale(1.08); } 66%{ transform:translate(-30px,25px) scale(0.95); } }
+
+  .app{ display:flex; height:100vh; position:relative; z-index:1; }
+
+  .ambient{ transition:transform .35s ease-out; transform:translate3d(calc(var(--mx,0) * -16px), calc(var(--my,0) * -16px), 0); }
+
+  /* ---------- logo mark (shared) ---------- */
+  .logo-mark{
+    position:relative; border-radius:26%;
+    background:linear-gradient(155deg, var(--aurora-1) 0%, var(--aurora-3) 55%, var(--aurora-4) 100%);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    box-shadow:0 4px 18px -6px rgba(139,92,246,0.55), inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -6px 10px rgba(0,0,0,0.18);
+    perspective:240px;
+  }
+  .logo-mark svg{ position:relative; z-index:1; animation:spin3d 7s linear infinite; transform-style:preserve-3d; }
+  @keyframes spin3d{ from{ transform:rotateY(0deg); } to{ transform:rotateY(360deg); } }
+
+  /* ---------- sidebar ---------- */
+  .sidebar{
+    width:272px; flex-shrink:0; background:var(--bg-sidebar);
+    border-right:1px solid var(--border);
+    display:flex; flex-direction:column;
+    transition:width .25s ease, padding .25s ease;
+    padding:16px 12px;
+  }
+  .sidebar.collapsed{ width:0; padding:16px 0; overflow:hidden; border-right:none; }
+
+  .brand{ display:flex; align-items:center; gap:10px; padding:6px 8px 18px 8px; }
+  .brand .logo-mark{ width:34px; height:34px; }
+  .brand-name{
+    font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:18px;
+    background:linear-gradient(90deg, var(--aurora-1), var(--aurora-2) 50%, var(--aurora-3));
+    -webkit-background-clip:text; background-clip:text; color:transparent; letter-spacing:0.3px;
+  }
+
+  .new-chat-btn{
+    display:flex; align-items:center; gap:8px; width:100%;
+    padding:10px 14px; border-radius:12px; border:1px solid var(--border);
+    background:var(--bg-panel); color:var(--text-primary); font-size:14px; font-weight:500;
+    cursor:pointer; transition:all .18s ease; margin-bottom:14px;
+  }
+  .new-chat-btn:hover{ background:var(--bg-panel-hover); border-color:var(--aurora-1); transform:translateY(-1px); box-shadow:0 6px 18px -8px rgba(139,92,246,0.5); }
+
+  .history-label{ font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-faint); padding:6px 10px; font-weight:600; }
+  .history-list{ flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:2px; padding-bottom:8px; }
+  .history-item{
+    display:flex; align-items:center; gap:9px; padding:9px 10px; border-radius:10px;
+    cursor:pointer; color:var(--text-muted); font-size:13.5px; transition:all .15s ease;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; position:relative;
+  }
+  .history-item:hover{ background:var(--bg-panel); color:var(--text-primary); }
+  .history-item.active{ background:var(--bg-panel-hover); color:var(--text-primary); }
+  .history-item.active::before{
+    content:""; position:absolute; left:0; top:8px; bottom:8px; width:3px; border-radius:3px;
+    background:linear-gradient(180deg, var(--aurora-1), var(--aurora-3));
+  }
+  .history-item span{ flex:1; overflow:hidden; text-overflow:ellipsis; }
+  .history-item svg.chat-icon{ flex-shrink:0; opacity:0.7; }
+  .history-item .del-btn{ opacity:0; flex-shrink:0; background:none; border:none; color:var(--text-faint); cursor:pointer; padding:2px; border-radius:6px; display:flex; }
+  .history-item:hover .del-btn{ opacity:1; }
+  .history-item .del-btn:hover{ color:var(--aurora-3); background:rgba(236,72,153,0.12); }
+
+  .sidebar-footer{ border-top:1px solid var(--border); padding-top:10px; margin-top:6px; display:flex; flex-direction:column; gap:2px; }
+  .footer-btn{
+    display:flex; align-items:center; gap:8px; width:100%; padding:9px 10px; border-radius:10px;
+    background:none; border:none; color:var(--text-muted); font-size:13px; cursor:pointer; transition:all .15s ease;
+  }
+  .footer-btn:hover{ color:var(--text-primary); background:var(--bg-panel); }
+  .footer-btn.danger:hover{ color:var(--aurora-3); background:rgba(236,72,153,0.08); }
+
+  /* ---------- main ---------- */
+  .main{ flex:1; display:flex; flex-direction:column; min-width:0; }
+  .topbar{
+    display:flex; align-items:center; gap:12px; padding:14px 20px; border-bottom:1px solid var(--border);
+    background:rgba(10,13,24,0.7); backdrop-filter:blur(10px);
+  }
+  .icon-btn{
+    width:34px; height:34px; border-radius:10px; border:1px solid var(--border); background:var(--bg-panel);
+    color:var(--text-muted); display:flex; align-items:center; justify-content:center; cursor:pointer;
+    transition:all .15s ease; flex-shrink:0;
+  }
+  .icon-btn:hover{ color:var(--text-primary); border-color:var(--aurora-1); }
+  .topbar-title{ font-family:'Space Grotesk', sans-serif; font-weight:600; font-size:15px; }
+  .topbar-sub{ font-size:12px; color:var(--text-faint); margin-left:auto; display:flex; align-items:center; gap:6px; }
+  .status-dot{ width:7px; height:7px; border-radius:50%; background:var(--aurora-2); box-shadow:0 0 8px var(--aurora-2); animation:pulse-dot 2s ease-in-out infinite; }
+  @keyframes pulse-dot{ 0%,100%{ opacity:1; } 50%{ opacity:0.4; } }
+
+  .chat-area{ flex:1; overflow-y:auto; padding:24px 0 10px; }
+  .chat-inner{ max-width:780px; margin:0 auto; padding:0 24px; display:flex; flex-direction:column; gap:22px; }
+
+  /* empty state */
+  .empty-state{ max-width:640px; margin:6vh auto 0; padding:0 24px; text-align:center; }
+  .empty-state .logo-mark{ width:64px; height:64px; margin:0 auto 20px; }
+  .empty-title{ font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:28px; margin-bottom:8px; }
+  .empty-sub{ color:var(--text-muted); font-size:14.5px; margin-bottom:28px; }
+  .chips{ display:flex; flex-wrap:wrap; gap:10px; justify-content:center; }
+  .chip{
+    padding:10px 16px; border-radius:12px; border:1px solid var(--border); background:var(--bg-panel);
+    color:var(--text-muted); font-size:13.5px; cursor:pointer; transition:transform .12s ease, box-shadow .12s ease, border-color .18s ease, color .18s ease;
+    text-align:left; transform-style:preserve-3d; will-change:transform;
+  }
+  .chip:hover{ border-color:var(--aurora-1); color:var(--text-primary); box-shadow:0 14px 28px -14px rgba(139,92,246,0.55); }
+
+  /* messages */
+  .msg{ display:flex; gap:12px; animation:fadeUp .35s ease; }
+  @keyframes fadeUp{ from{ opacity:0; transform:translateY(8px); } to{ opacity:1; transform:translateY(0); } }
+  .avatar{ width:30px; height:30px; border-radius:9px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; }
+  .avatar.user{ background:var(--bg-panel-hover); color:var(--text-muted); border:1px solid var(--border); }
+  .msg-body{ flex:1; min-width:0; }
+  .msg-role{ font-size:12.5px; font-weight:600; color:var(--text-faint); margin-bottom:4px; display:flex; align-items:center; gap:8px; }
+  .msg-time{ font-weight:400; font-size:11px; color:var(--text-faint); opacity:0; transition:opacity .15s ease; }
+  .msg:hover .msg-time{ opacity:1; }
+  .msg-content{ font-size:var(--msg-font-size, 14.5px); line-height:1.65; color:var(--text-primary); word-wrap:break-word; }
+  .msg-content p{ margin-bottom:10px; }
+  .msg-content p:last-child{ margin-bottom:0; }
+  .msg-content ul, .msg-content ol{ margin:8px 0 12px 22px; }
+  .msg-content li{ margin-bottom:5px; }
+  .msg-content h1, .msg-content h2, .msg-content h3{ font-family:'Space Grotesk', sans-serif; margin:14px 0 8px; line-height:1.3; }
+  .msg-content h1{ font-size:19px; } .msg-content h2{ font-size:17px; } .msg-content h3{ font-size:15.5px; }
+  .msg-content strong{ font-weight:700; color:#fff; }
+  .msg-content code.inline-code{
+    background:rgba(139,92,246,0.15); color:var(--aurora-2); padding:2px 6px; border-radius:5px;
+    font-family:'JetBrains Mono', monospace; font-size:0.88em;
+  }
+  .msg.user .msg-content{ background:var(--bg-bubble-user); padding:10px 14px; border-radius:14px 14px 4px 14px; display:inline-block; white-space:pre-wrap; }
+
+  .code-block{ margin:10px 0 14px; border-radius:12px; overflow:hidden; border:1px solid var(--border); background:var(--bg-code); }
+  .code-block-header{
+    display:flex; align-items:center; justify-content:space-between; padding:8px 14px;
+    background:#0e1226; border-bottom:1px solid var(--border);
+    font-family:'JetBrains Mono', monospace; font-size:11.5px; color:var(--text-muted);
+  }
+  .code-block-header .copy-code-btn{
+    background:none; border:1px solid var(--border); color:var(--text-muted); border-radius:6px;
+    padding:4px 9px; font-size:11px; cursor:pointer; display:flex; align-items:center; gap:5px; transition:all .15s ease;
+    font-family:'Inter', sans-serif;
+  }
+  .code-block-header .copy-code-btn:hover{ color:var(--text-primary); border-color:var(--aurora-2); }
+  .code-block pre{
+    margin:0; padding:14px 16px; overflow-x:auto; font-family:'JetBrains Mono', monospace;
+    font-size:13px; line-height:1.6; color:#d8dcf5;
+  }
+  .code-block pre .tok-kw{ color:var(--aurora-1); }
+  .code-block pre .tok-str{ color:var(--aurora-2); }
+  .code-block pre .tok-com{ color:var(--text-faint); font-style:italic; }
+  .code-block pre .tok-num{ color:var(--aurora-4); }
+  .code-block pre .tok-fn{ color:var(--aurora-3); }
+
+  .msg-actions{ display:flex; gap:6px; margin-top:8px; opacity:0; transition:opacity .15s ease; }
+  .msg:hover .msg-actions{ opacity:1; }
+  .msg-actions button{
+    background:none; border:1px solid var(--border); color:var(--text-faint); border-radius:8px; padding:5px 8px;
+    font-size:11.5px; cursor:pointer; display:flex; align-items:center; gap:5px; transition:all .15s ease;
+  }
+  .msg-actions button:hover{ color:var(--text-primary); border-color:var(--aurora-2); }
+
+  .typing{ display:flex; gap:5px; align-items:center; padding:4px 0; }
+  .typing span{ width:6px; height:6px; border-radius:50%; background:var(--aurora-1); animation:bounce 1.2s ease-in-out infinite; }
+  .typing span:nth-child(2){ background:var(--aurora-2); animation-delay:.15s; }
+  .typing span:nth-child(3){ background:var(--aurora-3); animation-delay:.3s; }
+  @keyframes bounce{ 0%,60%,100%{ transform:translateY(0); opacity:.5; } 30%{ transform:translateY(-5px); opacity:1; } }
+
+  /* input */
+  .input-wrap{ padding:14px 24px 20px; }
+  .input-inner{ max-width:780px; margin:0 auto; }
+  .input-box-glow{ position:relative; border-radius:20px; }
+  .input-box-glow::before,
+  .input-box-glow::after{
+    content:""; position:absolute; border-radius:22px;
+    background:conic-gradient(from 0deg, var(--aurora-1), var(--aurora-2), var(--aurora-3), var(--aurora-4), var(--aurora-1));
+    animation: borderSpin 5s linear infinite;
+  }
+  .input-box-glow::before{ inset:-2px; z-index:0; opacity:0.95; }
+  .input-box-glow::after{ inset:-14px; z-index:-1; filter:blur(22px); opacity:0.4; }
+  .input-box-glow:focus-within::before,
+  .input-box-glow:focus-within::after{ animation-duration:2.4s; }
+  .input-box-glow:focus-within::after{ opacity:0.6; }
+  @keyframes borderSpin{ to{ transform:rotate(360deg); } }
+  .input-box{
+    position:relative; z-index:1;
+    display:flex; align-items:flex-end; gap:10px; background:var(--bg-panel);
+    border-radius:18px; padding:10px 10px 10px 18px;
+    transition:box-shadow .2s ease;
+  }
+  .input-box textarea{
+    flex:1; background:none; border:none; outline:none; resize:none; color:var(--text-primary);
+    font-family:'Inter', sans-serif; font-size:14.5px; line-height:1.5; max-height:160px; padding:6px 0;
+  }
+  .input-box textarea::placeholder{ color:var(--text-faint); }
+  .send-btn{
+    width:38px; height:38px; border-radius:12px; border:none; flex-shrink:0; cursor:pointer;
+    background:linear-gradient(135deg, var(--aurora-1), var(--aurora-3)); color:#fff;
+    display:flex; align-items:center; justify-content:center; transition:all .18s ease;
+  }
+  .send-btn:disabled{ opacity:0.35; cursor:not-allowed; }
+  .send-btn:not(:disabled):hover{ transform:scale(1.06); box-shadow:0 6px 18px -6px rgba(236,72,153,0.6); }
+  .input-hint{ text-align:center; font-size:11.5px; color:var(--text-faint); margin-top:9px; }
+
+  /* landing mode: center the empty-state + input as one group, like Gemini's home screen */
+  .chat-area{ display:flex; flex-direction:column; }
+  .chat-area.landing{ justify-content:center; }
+  .main.landing .input-wrap{ padding-top:0; }
+
+  /* ---------- settings panel ---------- */
+  .overlay{
+    position:fixed; inset:0; background:rgba(6,8,16,0.6); backdrop-filter:blur(3px);
+    display:none; align-items:center; justify-content:center; z-index:50; animation:fadeIn .2s ease;
+  }
+  .overlay.open{ display:flex; }
+  @keyframes fadeIn{ from{ opacity:0; } to{ opacity:1; } }
+  .settings-panel{
+    width:420px; max-width:92vw; max-height:82vh; overflow-y:auto; background:var(--bg-panel);
+    border:1px solid var(--border); border-radius:20px; padding:22px; animation:popIn .22s ease;
+    box-shadow:0 30px 60px -20px rgba(0,0,0,0.55), 0 10px 24px -10px rgba(139,92,246,0.25);
+  }
+  @keyframes popIn{ from{ opacity:0; transform:scale(0.96) translateY(8px); } to{ opacity:1; transform:scale(1) translateY(0); } }
+  .settings-header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+  .settings-header h2{ font-family:'Space Grotesk', sans-serif; font-size:18px; font-weight:700; }
+  .settings-close{ background:none; border:none; color:var(--text-muted); cursor:pointer; padding:4px; border-radius:8px; }
+  .settings-close:hover{ color:var(--text-primary); background:var(--bg-panel-hover); }
+  .settings-section{ margin-bottom:22px; }
+  .settings-section-label{ font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-faint); font-weight:600; margin-bottom:10px; }
+  .theme-row{ display:flex; gap:10px; }
+  .theme-swatch{
+    width:38px; height:38px; border-radius:11px; cursor:pointer; border:2px solid transparent; transition:border-color .15s ease, box-shadow .15s ease;
+    position:relative; transform-style:preserve-3d; will-change:transform;
+  }
+  .theme-swatch.active{ border-color:#fff; }
+  .settings-row{ display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--border); }
+  .settings-row:last-child{ border-bottom:none; }
+  .settings-row-label{ font-size:13.5px; color:var(--text-primary); }
+  .settings-row-desc{ font-size:11.5px; color:var(--text-faint); margin-top:2px; }
+  .switch{ width:44px; height:25px; border-radius:14px; background:var(--bg-panel-hover); border:1px solid var(--border); position:relative; cursor:pointer; flex-shrink:0; transition:background .2s ease; }
+  .switch .knob{ position:absolute; top:2px; left:2px; width:19px; height:19px; border-radius:50%; background:var(--text-muted); transition:all .2s ease; }
+  .switch.on{ background:linear-gradient(90deg, var(--aurora-1), var(--aurora-3)); border-color:transparent; }
+  .switch.on .knob{ left:21px; background:#fff; }
+  .font-toggle{ display:flex; gap:6px; }
+  .font-toggle button{
+    padding:6px 12px; border-radius:8px; border:1px solid var(--border); background:var(--bg-panel-hover);
+    color:var(--text-muted); font-size:12.5px; cursor:pointer; transition:all .15s ease;
+  }
+  .font-toggle button.active{ color:#fff; border-color:var(--aurora-1); background:rgba(139,92,246,0.18); }
+  .settings-btn-row{
+    display:flex; align-items:center; gap:8px; width:100%; padding:10px 12px; border-radius:10px;
+    background:var(--bg-panel-hover); border:1px solid var(--border); color:var(--text-primary); font-size:13px;
+    cursor:pointer; transition:all .15s ease; margin-bottom:8px;
+  }
+  .settings-btn-row:hover{ border-color:var(--aurora-1); }
+  .settings-btn-row.danger:hover{ border-color:var(--aurora-3); color:var(--aurora-3); }
+  .about-box{ display:flex; align-items:center; gap:12px; padding:14px; border-radius:14px; background:var(--bg-panel-hover); }
+  .about-box .logo-mark{ width:42px; height:42px; }
+  .about-text b{ font-family:'Space Grotesk', sans-serif; font-size:14.5px; display:block; }
+  .about-text span{ font-size:12px; color:var(--text-muted); }
+
+  @media (max-width:760px){
+    .sidebar{ position:fixed; z-index:10; height:100vh; box-shadow:0 0 40px rgba(0,0,0,0.5); }
+    .sidebar.collapsed{ width:0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="ambient">
+  <div class="blob b1"></div>
+  <div class="blob b2"></div>
+  <div class="blob b3"></div>
+</div>
+
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="logo-mark">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="9" stroke="#fff" stroke-width="1.1" opacity="0.35" stroke-dasharray="2.5 3.5"/>
+          <line x1="12" y1="12" x2="12" y2="5" stroke="#fff" stroke-width="1.4" opacity="0.6"/>
+          <line x1="12" y1="12" x2="5.9" y2="15.6" stroke="#fff" stroke-width="1.4" opacity="0.6"/>
+          <line x1="12" y1="12" x2="18.1" y2="15.6" stroke="#fff" stroke-width="1.4" opacity="0.6"/>
+          <circle cx="12" cy="5" r="2" fill="#fff"/>
+          <circle cx="5.9" cy="15.6" r="2" fill="#fff" opacity="0.88"/>
+          <circle cx="18.1" cy="15.6" r="2" fill="#fff" opacity="0.88"/>
+          <circle cx="12" cy="12" r="3" fill="#fff"/>
+        </svg>
+      </div>
+      <div class="brand-name">Sentra AI</div>
+    </div>
+
+    <button class="new-chat-btn" id="newChatBtn">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+      New chat
+    </button>
+
+    <div class="history-label">Recent</div>
+    <div class="history-list" id="historyList"></div>
+
+    <div class="sidebar-footer">
+      <button class="footer-btn danger" id="clearBtn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>
+        Clear history
+      </button>
+      <button class="footer-btn" id="settingsBtn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        Settings
+      </button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <button class="icon-btn" id="toggleSidebar" title="Toggle sidebar">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
+      </button>
+      <div class="topbar-title" id="topbarTitle">New chat</div>
+      <div class="topbar-sub"><span class="status-dot"></span> Sentra online</div>
+    </div>
+
+    <div class="chat-area" id="chatArea">
+      <div class="empty-state" id="emptyState">
+        <div class="logo-mark">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="9" stroke="#fff" stroke-width="1.1" opacity="0.35" stroke-dasharray="2.5 3.5"/>
+            <line x1="12" y1="12" x2="12" y2="5" stroke="#fff" stroke-width="1.4" opacity="0.6"/>
+            <line x1="12" y1="12" x2="5.9" y2="15.6" stroke="#fff" stroke-width="1.4" opacity="0.6"/>
+            <line x1="12" y1="12" x2="18.1" y2="15.6" stroke="#fff" stroke-width="1.4" opacity="0.6"/>
+            <circle cx="12" cy="5" r="2" fill="#fff"/>
+            <circle cx="5.9" cy="15.6" r="2" fill="#fff" opacity="0.88"/>
+            <circle cx="18.1" cy="15.6" r="2" fill="#fff" opacity="0.88"/>
+            <circle cx="12" cy="12" r="3" fill="#fff"/>
+          </svg>
+        </div>
+        <div class="empty-title">Hey, I'm Sentra.</div>
+        <div class="empty-sub">Ask me anything — code, writing, ideas, or just a chat.</div>
+        <div class="chips">
+          <button class="chip" data-prompt="Explain quantum computing like I'm 12">Explain quantum computing simply</button>
+          <button class="chip" data-prompt="Write a short poem about the monsoon">Write a monsoon poem</button>
+          <button class="chip" data-prompt="Write a Python function to reverse a linked list">Write some Python code</button>
+          <button class="chip" data-prompt="Help me debug a JavaScript function">Debug some code</button>
+        </div>
+      </div>
+      <div class="chat-inner" id="chatInner"></div>
+    </div>
+
+    <div class="input-wrap">
+      <div class="input-inner">
+        <div class="input-box-glow">
+          <div class="input-box">
+            <textarea id="msgInput" rows="1" placeholder="Message Sentra AI..."></textarea>
+            <button class="send-btn" id="sendBtn" disabled>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+            </button>
+          </div>
+        </div>
+        <div class="input-hint">Sentra AI can make mistakes. Consider checking important information.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Settings modal -->
+<div class="overlay" id="settingsOverlay">
+  <div class="settings-panel">
+    <div class="settings-header">
+      <h2>Settings</h2>
+      <button class="settings-close" id="settingsClose">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-label">Accent theme</div>
+      <div class="theme-row" id="themeRow"></div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-label">Appearance</div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Light mode</div>
+          <div class="settings-row-desc">Switch between dark and light</div>
+        </div>
+        <div class="switch" id="themeModeSwitch"><div class="knob"></div></div>
+      </div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Text size</div>
+          <div class="settings-row-desc">Adjust chat readability</div>
+        </div>
+        <div class="font-toggle" id="fontToggle">
+          <button data-size="13.5">Small</button>
+          <button data-size="14.5" class="active">Default</button>
+          <button data-size="16">Large</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-label">Data</div>
+      <button class="settings-btn-row" id="exportBtn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        Export current chat (.txt)
+      </button>
+      <button class="settings-btn-row danger" id="settingsClearBtn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path></svg>
+        Clear all chat history
+      </button>
+    </div>
+
+    <div class="settings-section" style="margin-bottom:4px;">
+      <div class="settings-section-label">About</div>
+      <div class="about-box">
+        <div class="logo-mark">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="9" stroke="#fff" stroke-width="1.1" opacity="0.35" stroke-dasharray="2.5 3.5"/>
+            <line x1="12" y1="12" x2="12" y2="5" stroke="#fff" stroke-width="1.4" opacity="0.6"/>
+            <line x1="12" y1="12" x2="5.9" y2="15.6" stroke="#fff" stroke-width="1.4" opacity="0.6"/>
+            <line x1="12" y1="12" x2="18.1" y2="15.6" stroke="#fff" stroke-width="1.4" opacity="0.6"/>
+            <circle cx="12" cy="5" r="2" fill="#fff"/>
+            <circle cx="5.9" cy="15.6" r="2" fill="#fff" opacity="0.88"/>
+            <circle cx="18.1" cy="15.6" r="2" fill="#fff" opacity="0.88"/>
+            <circle cx="12" cy="12" r="3" fill="#fff"/>
+          </svg>
+        </div>
+        <div class="about-text">
+          <b>Sentra AI</b>
+          <span>Version 1.1 · Developed by Prince Lakhani</span>
+          <span id="memoryStatus" style="display:block; margin-top:4px;"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let chats = [];
+let currentChatId = null;
+
+const THEMES = [
+  { name:'Aurora', c:['#8b5cf6','#2dd4bf','#ec4899','#fb923c'] },
+  { name:'Sunset', c:['#f97316','#ef4444','#ec4899','#fbbf24'] },
+  { name:'Ocean',  c:['#06b6d4','#3b82f6','#8b5cf6','#22d3ee'] },
+  { name:'Forest', c:['#22c55e','#14b8a6','#84cc16','#facc15'] },
+];
+let activeTheme = 0;
+let currentFontSize = 14.5;
+let autoReadReplies = false;
+
+const SYSTEM_PROMPT = `You are Sentra AI, a helpful, knowledgeable, and friendly AI assistant developed by Prince Lakhani. If asked who created, developed, or made you, or about your origin, say your developer is Prince Lakhani.
+
+Always detect the language (and script) the user is writing in — including mixed/romanized languages like Hinglish or Gujlish — and reply in that same language and script by default, unless the user asks you to switch.
+
+If a message includes extracted text from an uploaded PDF/CSV file or an attached image, treat it as real context: reference specific details from it in your answer instead of giving a generic response.
+
+Answer questions accurately and helpfully across any topic, using clear markdown (bold, headers, lists, blockquotes) where it genuinely improves readability — don't over-format simple answers.
+
+When your answer involves code, follow these rules closely:
+- Always use a fenced code block with the correct language identifier (e.g. \`\`\`python, \`\`\`javascript, \`\`\`html, \`\`\`bash).
+- Write clean, idiomatic, production-quality code: sensible naming, proper indentation, and comments only where they add real value (not for obvious lines).
+- Prefer complete, runnable code over fragments unless the user only asked for a snippet.
+- Before the code, give a short 1-3 sentence explanation of the approach — not a wall of text.
+- After the code, briefly note anything important (edge cases, how to run it, assumptions made) in a few sentences or a short list, not a repeat of the code.
+- If the user's request is ambiguous, briefly state the assumption you're making and proceed, rather than only asking questions.
+- Never truncate code mid-way; if a solution is long, keep it complete and well organized rather than cutting it off.
+- Match the language/framework conventions the user is using (e.g. ES6+ for modern JS, type hints for Python if the user's code uses them, PEP8 style, etc.).
+- When fixing or reviewing code the user shared, show the corrected code and briefly explain what was wrong, rather than only describing the fix in prose.`;
+
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+function sentraMarkSVG(size){
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none">
+    <circle cx="12" cy="12" r="9" stroke="#fff" stroke-width="1.1" opacity="0.35" stroke-dasharray="2.5 3.5"/>
+    <line x1="12" y1="12" x2="12" y2="5" stroke="#fff" stroke-width="1.4" opacity="0.6"/>
+    <line x1="12" y1="12" x2="5.9" y2="15.6" stroke="#fff" stroke-width="1.4" opacity="0.6"/>
+    <line x1="12" y1="12" x2="18.1" y2="15.6" stroke="#fff" stroke-width="1.4" opacity="0.6"/>
+    <circle cx="12" cy="5" r="2" fill="#fff"/>
+    <circle cx="5.9" cy="15.6" r="2" fill="#fff" opacity="0.88"/>
+    <circle cx="18.1" cy="15.6" r="2" fill="#fff" opacity="0.88"/>
+    <circle cx="12" cy="12" r="3" fill="#fff"/>
+  </svg>`;
+}
+
+function applyTheme(idx){
+  activeTheme = idx;
+  const t = THEMES[idx];
+  document.documentElement.style.setProperty('--aurora-1', t.c[0]);
+  document.documentElement.style.setProperty('--aurora-2', t.c[1]);
+  document.documentElement.style.setProperty('--aurora-3', t.c[2]);
+  document.documentElement.style.setProperty('--aurora-4', t.c[3]);
+  document.querySelectorAll('.theme-swatch').forEach((el,i) => el.classList.toggle('active', i === idx));
+  persistPrefs();
+}
+
+function renderThemeSwatches(){
+  const row = document.getElementById('themeRow');
+  row.innerHTML = '';
+  THEMES.forEach((t, i) => {
+    const sw = document.createElement('div');
+    sw.className = 'theme-swatch' + (i === activeTheme ? ' active' : '');
+    sw.style.background = `linear-gradient(135deg, ${t.c[0]}, ${t.c[2]})`;
+    sw.title = t.name;
+    sw.addEventListener('click', () => applyTheme(i));
+    row.appendChild(sw);
+  });
+}
+
+/* ----------------------------------------------------------------
+   Storage layer
+   Uses the artifact key-value store (window.storage) when Sentra is
+   viewed inside Claude's artifact panel. If that API isn't present
+   (e.g. the file was downloaded and opened directly in a browser),
+   it falls back to localStorage so chat history still survives
+   reloads and new tabs. Every call is wrapped in try/catch so a
+   storage failure never breaks the chat itself.
+------------------------------------------------------------------- */
+const HAS_ARTIFACT_STORAGE = (typeof window !== 'undefined') && !!window.storage;
+let HAS_LOCAL_STORAGE = false;
+try {
+  const t = '__sentra_test__';
+  localStorage.setItem(t, '1');
+  localStorage.removeItem(t);
+  HAS_LOCAL_STORAGE = true;
+} catch(e){ HAS_LOCAL_STORAGE = false; }
+
+const Store = {
+  async get(key){
+    if (HAS_ARTIFACT_STORAGE){
+      try { return await window.storage.get(key, false); }
+      catch(e){ return null; }
+    }
+    if (HAS_LOCAL_STORAGE){
+      try {
+        const raw = localStorage.getItem('sentra:' + key);
+        return raw !== null ? { key, value: raw, shared: false } : null;
+      } catch(e){ return null; }
+    }
+    return null;
+  },
+  async set(key, value){
+    if (HAS_ARTIFACT_STORAGE){
+      try { return await window.storage.set(key, value, false); }
+      catch(e){ console.error('Sentra storage: set failed', e); return null; }
+    }
+    if (HAS_LOCAL_STORAGE){
+      try { localStorage.setItem('sentra:' + key, value); return { key, value, shared: false }; }
+      catch(e){ console.error('Sentra storage: set failed', e); return null; }
+    }
+    return null;
+  },
+  async delete(key){
+    if (HAS_ARTIFACT_STORAGE){
+      try { return await window.storage.delete(key, false); }
+      catch(e){ return null; }
+    }
+    if (HAS_LOCAL_STORAGE){
+      try { localStorage.removeItem('sentra:' + key); return { key, deleted: true, shared: false }; }
+      catch(e){ return null; }
+    }
+    return null;
+  }
+};
+const PERSISTENCE_ENABLED = HAS_ARTIFACT_STORAGE || HAS_LOCAL_STORAGE;
+(function setMemoryStatusLabel(){
+  const el = document.getElementById('memoryStatus');
+  if (!el) return;
+  if (HAS_ARTIFACT_STORAGE){ el.textContent = '🟢 Chat memory: active (artifact storage)'; }
+  else if (HAS_LOCAL_STORAGE){ el.textContent = '🟢 Chat memory: active (saved in this browser)'; }
+  else { el.textContent = '🟡 Chat memory: unavailable in this environment (chats reset on reload)'; }
+})();
+
+async function persistChat(chat){
+  if (!chat) return;
+  await Store.set('chat:' + chat.id, JSON.stringify(chat));
+}
+async function persistMeta(){
+  await Store.set('meta', JSON.stringify({
+    order: chats.map(c => c.id),
+    currentChatId
+  }));
+}
+async function removeChatFromStorage(id){
+  await Store.delete('chat:' + id);
+}
+async function persistAll(){
+  await persistMeta();
+  await persistChat(getCurrentChat());
+}
+
+async function persistPrefs(){
+  await Store.set('prefs', JSON.stringify({ themeIndex: activeTheme, lightMode, fontSize: currentFontSize, autoRead: autoReadReplies }));
+}
+async function loadPrefs(){
+  try {
+    const res = await Store.get('prefs');
+    if (!res || !res.value) return;
+    const prefs = JSON.parse(res.value);
+    if (typeof prefs.themeIndex === 'number') applyTheme(prefs.themeIndex);
+    if (prefs.lightMode){
+      lightMode = true;
+      document.documentElement.setAttribute('data-theme', 'light');
+    }
+    if (prefs.fontSize){
+      currentFontSize = prefs.fontSize;
+      document.documentElement.style.setProperty('--msg-font-size', prefs.fontSize + 'px');
+      document.querySelectorAll('#fontToggle button').forEach(b => {
+        b.classList.toggle('active', b.dataset.size === String(prefs.fontSize));
+      });
+    }
+    if (prefs.autoRead){
+      autoReadReplies = true;
+      const sw = document.getElementById('autoReadSwitch');
+      if (sw) sw.classList.add('on');
+    }
+  } catch(e){ /* ignore malformed prefs */ }
+}
+
+/* ---------- Memory (user facts / preferences for personalization) ---------- */
+let userMemory = [];
+async function persistMemory(){
+  await Store.set('memory', JSON.stringify(userMemory));
+}
+async function loadMemory(){
+  try {
+    const res = await Store.get('memory');
+    if (res && res.value) userMemory = JSON.parse(res.value);
+  } catch(e){ userMemory = []; }
+}
+function renderMemoryList(){
+  const list = document.getElementById('memoryList');
+  if (!list) return;
+  list.innerHTML = '';
+  if (!userMemory.length){
+    list.innerHTML = '<div class="settings-row-desc" style="padding:6px 0;">No saved facts yet — add something below so Sentra remembers it in future chats.</div>';
+    return;
+  }
+  userMemory.forEach((fact, idx) => {
+    const row = document.createElement('div');
+    row.className = 'memory-item';
+    row.innerHTML = `<span>${escapeHtml(fact)}</span><button data-idx="${idx}" title="Remove">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+    </button>`;
+    row.querySelector('button').addEventListener('click', () => {
+      userMemory.splice(idx, 1);
+      persistMemory();
+      renderMemoryList();
+    });
+    list.appendChild(row);
+  });
+}
+function buildSystemPrompt(){
+  if (!userMemory.length) return SYSTEM_PROMPT;
+  return SYSTEM_PROMPT + '\n\nThings you know about this specific user from earlier sessions (use these naturally to personalize your answers, don\'t just repeat them back):\n' +
+    userMemory.map(f => '- ' + f).join('\n');
+}
+
+async function loadFromStorage(){
+  try {
+    const metaRes = await Store.get('meta');
+    if (!metaRes || !metaRes.value) return false;
+    const meta = JSON.parse(metaRes.value);
+    const loaded = [];
+    for (const id of (meta.order || [])){
+      try {
+        const res = await Store.get('chat:' + id);
+        if (res && res.value) loaded.push(JSON.parse(res.value));
+      } catch(e){ /* one corrupt chat shouldn't break the rest */ }
+    }
+    if (!loaded.length) return false;
+    chats = loaded;
+    currentChatId = (meta.currentChatId && chats.some(c => c.id === meta.currentChatId))
+      ? meta.currentChatId : chats[0].id;
+    return true;
+  } catch(e){
+    console.error('Sentra storage: failed to load history', e);
+    return false;
+  }
+}
+
+async function initApp(){
+  await loadPrefs();
+  await loadMemory();
+  renderMemoryList();
+  const restored = await loadFromStorage();
+  if (!restored) createChat();
+  else renderAll();
+}
+
+function createChat(){
+  const chat = { id: uid(), title: "New chat", messages: [] };
+  chats.unshift(chat);
+  currentChatId = chat.id;
+  renderAll();
+  persistAll();
+  document.getElementById('msgInput').focus();
+}
+
+function getCurrentChat(){ return chats.find(c => c.id === currentChatId); }
+
+function renderSidebar(){
+  const list = document.getElementById('historyList');
+  list.innerHTML = '';
+  chats.forEach(chat => {
+    const item = document.createElement('div');
+    item.className = 'history-item' + (chat.id === currentChatId ? ' active' : '');
+    item.innerHTML = `
+      <svg class="chat-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+      <span>${escapeHtml(chat.title)}</span>
+      <button class="del-btn" data-id="${chat.id}" title="Delete">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>`;
+    item.addEventListener('click', (e) => {
+      if (e.target.closest('.del-btn')) return;
+      currentChatId = chat.id;
+      renderAll();
+      persistMeta();
+    });
+    item.querySelector('.del-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteChat(chat.id);
+    });
+    list.appendChild(item);
+  });
+}
+
+function deleteChat(id){
+  chats = chats.filter(c => c.id !== id);
+  removeChatFromStorage(id);
+  if (currentChatId === id){
+    currentChatId = chats.length ? chats[0].id : null;
+  }
+  if (!chats.length) createChat(); else { renderAll(); persistMeta(); }
+}
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+/* ---------- lightweight markdown + code highlighting ---------- */
+function highlightCode(code, lang){
+  let c = escapeHtml(code);
+  const kw = /\b(function|const|let|var|return|if|else|for|while|def|class|import|from|export|default|new|async|await|try|catch|public|static|void|int|string|True|False|None|null|true|false|self|print)\b/g;
+
+  // Pull out comments and strings first so keyword/number highlighting
+  // never reaches inside them (previously a keyword or number sitting
+  // inside a string literal or comment would get double-wrapped).
+  const stash = [];
+  const stashify = (match, cls) => {
+    stash.push(`<span class="${cls}">${match}</span>`);
+    return `§TOK${stash.length - 1}§`;
+  };
+  c = c.replace(/(&quot;.*?&quot;|&#39;.*?&#39;)/g, (m) => stashify(m, 'tok-str'));
+  c = c.replace(/(#.*$)/gm, (m) => stashify(m, 'tok-com'));
+  c = c.replace(/(\/\/.*$)/gm, (m) => stashify(m, 'tok-com'));
+
+  c = c.replace(kw, '<span class="tok-kw">$&</span>');
+  c = c.replace(/\b(\d+\.?\d*)\b/g, '<span class="tok-num">$1</span>');
+
+  c = c.replace(/§TOK(\d+)§/g, (m, idx) => stash[+idx]);
+  return c;
+}
+
+function renderMarkdown(text){
+  const codeBlocks = [];
+  text = text.replace(/```(\w*)\n?([\s\S]*?)```/g, (m, lang, code) => {
+    codeBlocks.push({ lang: lang || 'text', code: code.replace(/\n$/, '') });
+    return `§CODEBLOCK${codeBlocks.length - 1}§`;
+  });
+
+  let escaped = escapeHtml(text);
+  escaped = escaped.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
+  escaped = escaped.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+  escaped = escaped.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+  escaped = escaped.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+  escaped = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  escaped = escaped.replace(/~~(.+?)~~/g, '<del>$1</del>');
+  escaped = escaped.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+  // italics: single * or _ around text, avoiding stray unmatched characters
+  escaped = escaped.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>');
+  escaped = escaped.replace(/(^|[^_a-zA-Z0-9])_([^_\n]+)_(?![_a-zA-Z0-9])/g, '$1<em>$2</em>');
+
+  const lines = escaped.split('\n');
+  let html = '', inList = false, listType = '', inQuote = false;
+  const closeList = () => { if (inList){ html += listType === 'ol' ? '</ol>' : '</ul>'; inList = false; } };
+  const closeQuote = () => { if (inQuote){ html += '</blockquote>'; inQuote = false; } };
+
+  lines.forEach(line => {
+    const ol = /^\s*\d+\.\s+(.*)/.exec(line);
+    const ul = /^\s*[-*]\s+(.*)/.exec(line);
+    const quote = /^\s*&gt;\s?(.*)/.exec(line);
+    const isHr = /^\s*(---|\*\*\*|___)\s*$/.test(line);
+    const isHeading = /^<h[1-3]>/.test(line);
+    const isCodePlaceholder = /^§CODEBLOCK\d+§$/.test(line.trim());
+
+    if (isHr){
+      closeList(); closeQuote();
+      html += '<hr style="border:none; border-top:1px solid var(--border); margin:14px 0;">';
+    } else if (quote){
+      closeList();
+      if (!inQuote){ html += '<blockquote style="border-left:3px solid var(--aurora-1); margin:10px 0; padding:2px 14px; color:var(--text-muted);">'; inQuote = true; }
+      html += `<p>${quote[1]}</p>`;
+    } else if (ol){
+      closeQuote();
+      if (!inList || listType !== 'ol'){ closeList(); html += '<ol>'; inList = true; listType = 'ol'; }
+      html += `<li>${ol[1]}</li>`;
+    } else if (ul){
+      closeQuote();
+      if (!inList || listType !== 'ul'){ closeList(); html += '<ul>'; inList = true; listType = 'ul'; }
+      html += `<li>${ul[1]}</li>`;
+    } else {
+      closeList(); closeQuote();
+      if (isHeading) html += line;
+      else if (isCodePlaceholder) html += line.trim();
+      else if (line.trim() === '') html += '';
+      else html += `<p>${line}</p>`;
+    }
+  });
+  closeList(); closeQuote();
+
+  html = html.replace(/§CODEBLOCK(\d+)§/g, (m, idx) => {
+    const block = codeBlocks[+idx];
+    const highlighted = highlightCode(block.code, block.lang);
+    return `<div class="code-block">
+      <div class="code-block-header">
+        <span>${escapeHtml(block.lang)}</span>
+        <button class="copy-code-btn" data-code-idx="${idx}">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+          Copy code
+        </button>
+      </div>
+      <pre>${highlighted}</pre>
+    </div>`;
+  });
+
+  return { html, codeBlocks };
+}
+
+function renderMessages(){
+  const chat = getCurrentChat();
+  const chatInner = document.getElementById('chatInner');
+  const emptyState = document.getElementById('emptyState');
+  const topbarTitle = document.getElementById('topbarTitle');
+  const chatArea = document.getElementById('chatArea');
+  const mainEl = document.querySelector('.main');
+  chatInner.innerHTML = '';
+
+  if (!chat || chat.messages.length === 0){
+    emptyState.style.display = 'block';
+    topbarTitle.textContent = 'New chat';
+    chatArea.classList.add('landing');
+    mainEl.classList.add('landing');
+    return;
+  }
+  emptyState.style.display = 'none';
+  topbarTitle.textContent = chat.title;
+  chatArea.classList.remove('landing');
+  mainEl.classList.remove('landing');
+
+  chat.messages.forEach((m, idx) => {
+    const msgEl = document.createElement('div');
+    msgEl.className = 'msg ' + (m.role === 'user' ? 'user' : 'ai');
+    const time = m.time || '';
+    if (m.role === 'user'){
+      msgEl.innerHTML = `
+        <div class="avatar user">You</div>
+        <div class="msg-body">
+          <div class="msg-role">You <span class="msg-time">${time}</span></div>
+          <div class="msg-content">${escapeHtml(m.content)}</div>
+        </div>`;
+    } else {
+      const { html, codeBlocks } = renderMarkdown(m.content);
+      msgEl.innerHTML = `
+        <div class="avatar" style="border-radius:9px; overflow:hidden;"><div class="logo-mark" style="width:30px;height:30px;border-radius:9px;">${sentraMarkSVG(15)}</div></div>
+        <div class="msg-body">
+          <div class="msg-role">Sentra AI <span class="msg-time">${time}</span></div>
+          <div class="msg-content">${html}</div>
+          <div class="msg-actions">
+            <button class="copy-btn" data-idx="${idx}">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              Copy
+            </button>
+            <button class="regen-btn" data-idx="${idx}">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+              Regenerate
+            </button>
+          </div>
+        </div>`;
+      msgEl.dataset.codeBlocks = JSON.stringify(codeBlocks);
+    }
+    chatInner.appendChild(msgEl);
+  });
+
+  chatInner.querySelectorAll('.copy-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const chat = getCurrentChat();
+      const text = chat.messages[+btn.dataset.idx].content;
+      navigator.clipboard.writeText(text).then(() => flashCopied(btn));
+    });
+  });
+  chatInner.querySelectorAll('.copy-code-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const msgEl = btn.closest('.msg');
+      const blocks = JSON.parse(msgEl.dataset.codeBlocks || '[]');
+      const code = blocks[+btn.dataset.codeIdx]?.code || '';
+      navigator.clipboard.writeText(code).then(() => flashCopied(btn, 'Copy code'));
+    });
+  });
+  chatInner.querySelectorAll('.regen-btn').forEach(btn => {
+    btn.addEventListener('click', () => regenerate(+btn.dataset.idx));
+  });
+
+  chatArea.scrollTop = chatArea.scrollHeight;
+}
+
+function flashCopied(btn, resetLabel){
+  const original = btn.innerHTML;
+  btn.textContent = 'Copied!';
+  setTimeout(() => btn.innerHTML = original, 1400);
+}
+
+function showTyping(){
+  const chatInner = document.getElementById('chatInner');
+  const el = document.createElement('div');
+  el.className = 'msg ai';
+  el.id = 'typingMsg';
+  el.innerHTML = `
+    <div class="avatar" style="border-radius:9px;"><div class="logo-mark" style="width:30px;height:30px;border-radius:9px;">${sentraMarkSVG(15)}</div></div>
+    <div class="msg-body">
+      <div class="msg-role">Sentra AI</div>
+      <div class="typing"><span></span><span></span><span></span></div>
+    </div>`;
+  chatInner.appendChild(el);
+  document.getElementById('chatArea').scrollTop = document.getElementById('chatArea').scrollHeight;
+}
+function hideTyping(){
+  const el = document.getElementById('typingMsg');
+  if (el) el.remove();
+}
+
+function renderAll(){
+  renderSidebar();
+  renderMessages();
+}
+
+function nowTime(){
+  return new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+}
+
+async function callSentra(historyMessages){
+  // Calls our own tiny backend (see /api/chat.js) instead of any AI provider
+  // directly. The backend holds the real API key as a server-side secret —
+  // this is what makes it safe to host this site publicly (GitHub Pages,
+  // Vercel, your own domain, etc.) without leaking your key to visitors.
+  const response = await fetch("/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      system: buildSystemPrompt(),
+      messages: historyMessages
+    })
+  });
+  let data;
+  try { data = await response.json(); }
+  catch(e){ throw new Error('Sentra returned an unreadable response.'); }
+
+  if (!response.ok){
+    const apiMsg = data && data.error ? data.error : `Request failed (status ${response.status}).`;
+    throw new Error(apiMsg);
+  }
+  if (data && typeof data.reply === 'string' && data.reply.trim()){
+    return data.reply;
+  }
+  throw new Error('Sentra returned an empty response.');
+}
+
+async function sendMessage(text){
+  if (!text.trim()) return;
+  let chat = getCurrentChat();
+  if (!chat){ createChat(); chat = getCurrentChat(); }
+
+  chat.messages.push({ role: 'user', content: text, time: nowTime() });
+  if (chat.title === 'New chat'){
+    chat.title = text.length > 32 ? text.slice(0, 32) + '…' : text;
+  }
+  renderAll();
+  showTyping();
+  document.getElementById('sendBtn').disabled = true;
+
+  try {
+    const apiMessages = chat.messages.map(m => ({ role: m.role, content: m.content }));
+    const reply = await callSentra(apiMessages);
+    hideTyping();
+    chat.messages.push({ role: 'assistant', content: reply, time: nowTime() });
+  } catch (err){
+    hideTyping();
+    chat.messages.push({ role: 'assistant', content: "I couldn't reach Sentra's servers just now (" + (err && err.message ? err.message : "connection issue") + "). Please try again in a moment.", time: nowTime() });
+  }
+
+  renderAll();
+  document.getElementById('sendBtn').disabled = false;
+  persistAll();
+}
+
+async function regenerate(idx){
+  const chat = getCurrentChat();
+  if (!chat) return;
+  const priorMessages = chat.messages.slice(0, idx);
+  chat.messages = priorMessages;
+  renderAll();
+  showTyping();
+  try {
+    const apiMessages = priorMessages.map(m => ({ role: m.role, content: m.content }));
+    const reply = await callSentra(apiMessages);
+    hideTyping();
+    chat.messages.push({ role: 'assistant', content: reply, time: nowTime() });
+  } catch (err){
+    hideTyping();
+    chat.messages.push({ role: 'assistant', content: "I couldn't reach Sentra's servers just now (" + (err && err.message ? err.message : "connection issue") + "). Please try again in a moment.", time: nowTime() });
+  }
+  renderAll();
+  persistAll();
+}
+
+const input = document.getElementById('msgInput');
+const sendBtn = document.getElementById('sendBtn');
+
+input.addEventListener('input', () => {
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 160) + 'px';
+  sendBtn.disabled = input.value.trim().length === 0;
+});
+
+input.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey){
+    e.preventDefault();
+    const text = input.value;
+    if (text.trim()){
+      input.value = '';
+      input.style.height = 'auto';
+      sendBtn.disabled = true;
+      sendMessage(text);
+    }
+  }
+});
+
+sendBtn.addEventListener('click', () => {
+  const text = input.value;
+  if (text.trim()){
+    input.value = '';
+    input.style.height = 'auto';
+    sendBtn.disabled = true;
+    sendMessage(text);
+  }
+});
+
+document.getElementById('newChatBtn').addEventListener('click', createChat);
+
+function clearAllHistory(){
+  if (chats.length && !confirm('Clear all chat history? This cannot be undone.')) return;
+  const idsToRemove = chats.map(c => c.id);
+  chats = [];
+  idsToRemove.forEach(removeChatFromStorage);
+  createChat();
+}
+document.getElementById('clearBtn').addEventListener('click', clearAllHistory);
+document.getElementById('settingsClearBtn').addEventListener('click', clearAllHistory);
+
+document.getElementById('toggleSidebar').addEventListener('click', () => {
+  document.getElementById('sidebar').classList.toggle('collapsed');
+});
+
+document.querySelectorAll('.chip').forEach(chip => {
+  chip.addEventListener('click', () => sendMessage(chip.dataset.prompt));
+});
+
+/* settings modal */
+const settingsOverlay = document.getElementById('settingsOverlay');
+document.getElementById('settingsBtn').addEventListener('click', () => {
+  renderThemeSwatches();
+  themeModeSwitch.classList.toggle('on', lightMode);
+  settingsOverlay.classList.add('open');
+});
+document.getElementById('settingsClose').addEventListener('click', () => settingsOverlay.classList.remove('open'));
+settingsOverlay.addEventListener('click', (e) => { if (e.target === settingsOverlay) settingsOverlay.classList.remove('open'); });
+
+document.getElementById('fontToggle').addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  document.querySelectorAll('#fontToggle button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentFontSize = parseFloat(btn.dataset.size);
+  document.documentElement.style.setProperty('--msg-font-size', btn.dataset.size + 'px');
+  persistPrefs();
+});
+
+const themeModeSwitch = document.getElementById('themeModeSwitch');
+let lightMode = false;
+themeModeSwitch.addEventListener('click', () => {
+  lightMode = !lightMode;
+  themeModeSwitch.classList.toggle('on', lightMode);
+  document.documentElement.setAttribute('data-theme', lightMode ? 'light' : 'dark');
+  persistPrefs();
+});
+
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const chat = getCurrentChat();
+  if (!chat || !chat.messages.length){ alert('No messages to export yet.'); return; }
+  const text = chat.messages.map(m => `${m.role === 'user' ? 'You' : 'Sentra AI'} (${m.time || ''}):\n${m.content}\n`).join('\n');
+  const blob = new Blob([text], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = (chat.title || 'sentra-chat').replace(/[^a-z0-9]/gi, '_') + '.txt';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+initApp();
+
+/* ---------- 3D interaction layer ---------- */
+function attachTilt(el, maxDeg){
+  if (!el || el.dataset.tiltBound) return;
+  el.dataset.tiltBound = '1';
+  el.style.transition = 'transform .15s ease';
+  el.addEventListener('mousemove', (e) => {
+    const r = el.getBoundingClientRect();
+    const px = (e.clientX - r.left) / r.width - 0.5;
+    const py = (e.clientY - r.top) / r.height - 0.5;
+    el.style.transform = `perspective(500px) rotateX(${(-py * maxDeg).toFixed(2)}deg) rotateY(${(px * maxDeg).toFixed(2)}deg) translateZ(6px)`;
+  });
+  el.addEventListener('mouseleave', () => { el.style.transform = ''; });
+}
+
+function bindTiltGroup(){
+  document.querySelectorAll('.chip').forEach(el => attachTilt(el, 9));
+  document.querySelectorAll('.theme-swatch').forEach(el => attachTilt(el, 16));
+  document.querySelectorAll('.logo-mark').forEach(el => attachTilt(el, 12));
+}
+bindTiltGroup();
+
+// re-bind tilt whenever the settings panel (theme swatches) is opened
+const _origRenderThemeSwatches = renderThemeSwatches;
+renderThemeSwatches = function(){
+  _origRenderThemeSwatches();
+  document.querySelectorAll('.theme-swatch').forEach(el => attachTilt(el, 16));
+};
+
+document.addEventListener('mousemove', (e) => {
+  const mx = (e.clientX / window.innerWidth) * 2 - 1;
+  const my = (e.clientY / window.innerHeight) * 2 - 1;
+  document.documentElement.style.setProperty('--mx', mx.toFixed(3));
+  document.documentElement.style.setProperty('--my', my.toFixed(3));
+});
+
+</script>
+</body>
+</html>
