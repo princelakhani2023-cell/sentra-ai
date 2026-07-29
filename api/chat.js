@@ -51,39 +51,51 @@ module.exports = async (req, res) => {
     geminiBody.system_instruction = { parts: [{ text: String(system) }] };
   }
 
-  try {
-    // gemini-2.5-flash is on Google's free tier (no billing required).
-    const model = 'gemini-2.5-flash';
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+  // "gemini-flash-latest" is an alias Google keeps pointed at their current
+  // free-tier Flash model, so this won't break every time a dated model
+  // (like gemini-2.5-flash) gets retired. A couple of dated fallbacks are
+  // kept behind it just in case the alias itself is ever unavailable.
+  const MODEL_CANDIDATES = ['gemini-flash-latest', 'gemini-3.6-flash', 'gemini-2.5-flash'];
 
-    const geminiRes = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey
-      },
-      body: JSON.stringify(geminiBody)
-    });
+  let lastError = null;
+  for (const model of MODEL_CANDIDATES){
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
-    const data = await geminiRes.json();
+      const geminiRes = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey
+        },
+        body: JSON.stringify(geminiBody)
+      });
 
-    if (!geminiRes.ok) {
-      const msg = (data && data.error && data.error.message) || `Gemini request failed (status ${geminiRes.status}).`;
-      res.status(geminiRes.status).json({ error: msg });
+      const data = await geminiRes.json();
+
+      if (!geminiRes.ok) {
+        lastError = (data && data.error && data.error.message) || `Gemini request failed (status ${geminiRes.status}).`;
+        // Model not found/retired — try the next candidate instead of failing outright.
+        if (geminiRes.status === 404) continue;
+        res.status(geminiRes.status).json({ error: lastError });
+        return;
+      }
+
+      const candidate = data.candidates && data.candidates[0];
+      const parts = candidate && candidate.content && candidate.content.parts;
+      const reply = Array.isArray(parts) ? parts.map(p => p.text || '').join('\n\n').trim() : '';
+
+      if (!reply) {
+        res.status(502).json({ error: 'Gemini returned an empty response (it may have blocked the content — try rephrasing).' });
+        return;
+      }
+
+      res.status(200).json({ reply, modelUsed: model });
       return;
+    } catch (err) {
+      lastError = err && err.message ? err.message : 'unknown error';
     }
-
-    const candidate = data.candidates && data.candidates[0];
-    const parts = candidate && candidate.content && candidate.content.parts;
-    const reply = Array.isArray(parts) ? parts.map(p => p.text || '').join('\n\n').trim() : '';
-
-    if (!reply) {
-      res.status(502).json({ error: 'Gemini returned an empty response (it may have blocked the content — try rephrasing).' });
-      return;
-    }
-
-    res.status(200).json({ reply });
-  } catch (err) {
-    res.status(500).json({ error: 'Server error contacting Gemini: ' + (err && err.message ? err.message : 'unknown error') });
   }
+
+  res.status(500).json({ error: 'All Gemini models failed. Last error: ' + lastError });
 };
