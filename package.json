@@ -5,5 +5,8 @@
   "description": "Sentra AI — a Gemini-powered chat assistant, deployable for free on Vercel.",
   "engines": {
     "node": ">=18"
+  },
+  "dependencies": {
+    "@vercel/speed-insights": "^2.0.0"
   }
 }
