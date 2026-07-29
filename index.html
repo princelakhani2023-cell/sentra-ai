@@ -60,7 +60,7 @@
   .blob.b3{width:380px; height:380px; background:var(--aurora-3); top:20%; right:-140px; animation-duration:24s; animation-delay:-12s;}
   @keyframes drift{ 0%,100%{ transform:translate(0,0) scale(1); } 33%{ transform:translate(40px,-30px) scale(1.08); } 66%{ transform:translate(-30px,25px) scale(0.95); } }
 
-  .app{ display:flex; height:100vh; position:relative; z-index:1; }
+  .app{ display:flex; height:100vh; height:100dvh; position:relative; z-index:1; }
 
   .ambient{ transition:transform .35s ease-out; transform:translate3d(calc(var(--mx,0) * -16px), calc(var(--my,0) * -16px), 0); }
 
@@ -312,9 +312,27 @@
   .about-text b{ font-family:'Space Grotesk', sans-serif; font-size:14.5px; display:block; }
   .about-text span{ font-size:12px; color:var(--text-muted); }
 
+  .sidebar-backdrop{
+    display:none; position:fixed; inset:0; background:rgba(4,5,12,0.55); z-index:9;
+    opacity:0; transition:opacity .25s ease;
+  }
+  .sidebar-backdrop.show{ display:block; opacity:1; }
+
   @media (max-width:760px){
-    .sidebar{ position:fixed; z-index:10; height:100vh; box-shadow:0 0 40px rgba(0,0,0,0.5); }
-    .sidebar.collapsed{ width:0; }
+    .sidebar{
+      position:fixed; z-index:10; top:0; left:0; height:100vh; height:100dvh;
+      width:82vw; max-width:300px; box-shadow:0 0 40px rgba(0,0,0,0.5);
+      transform:translateX(0); transition:transform .25s ease;
+    }
+    .sidebar.collapsed{ width:82vw; max-width:300px; padding:16px 12px; transform:translateX(-100%); }
+    .main{ width:100%; }
+    .chat-inner, .input-inner{ padding-left:16px; padding-right:16px; }
+    .topbar{ padding:12px 14px; }
+    .empty-title{ font-size:23px; }
+    .chips{ gap:8px; }
+    .chip{ font-size:13px; padding:9px 13px; }
+    /* iOS Safari zooms the page in if a focused input's font-size is under 16px */
+    .input-box textarea{ font-size:16px; }
   }
 </style>
 </head>
@@ -327,6 +345,7 @@
 </div>
 
 <div class="app">
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
   <aside class="sidebar" id="sidebar">
     <div class="brand">
       <div class="logo-mark">
@@ -770,6 +789,7 @@ function renderSidebar(){
       currentChatId = chat.id;
       renderAll();
       persistMeta();
+      closeSidebarOnMobile();
     });
     item.querySelector('.del-btn').addEventListener('click', (e) => {
       e.stopPropagation();
@@ -1111,7 +1131,10 @@ sendBtn.addEventListener('click', () => {
   }
 });
 
-document.getElementById('newChatBtn').addEventListener('click', createChat);
+document.getElementById('newChatBtn').addEventListener('click', () => {
+  createChat();
+  closeSidebarOnMobile();
+});
 
 function clearAllHistory(){
   if (chats.length && !confirm('Clear all chat history? This cannot be undone.')) return;
@@ -1123,9 +1146,30 @@ function clearAllHistory(){
 document.getElementById('clearBtn').addEventListener('click', clearAllHistory);
 document.getElementById('settingsClearBtn').addEventListener('click', clearAllHistory);
 
+const sidebarEl = document.getElementById('sidebar');
+const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+const isMobileViewport = () => window.innerWidth <= 760;
+
+function setSidebarOpen(open){
+  sidebarEl.classList.toggle('collapsed', !open);
+  if (isMobileViewport()){
+    sidebarBackdrop.classList.toggle('show', open);
+  } else {
+    sidebarBackdrop.classList.remove('show');
+  }
+}
+function closeSidebarOnMobile(){
+  if (isMobileViewport()) setSidebarOpen(false);
+}
+
+// On phones, start with the sidebar tucked away (it's a slide-in overlay
+// there) so the chat is usable immediately, instead of covering the screen.
+if (isMobileViewport()) setSidebarOpen(false);
+
 document.getElementById('toggleSidebar').addEventListener('click', () => {
-  document.getElementById('sidebar').classList.toggle('collapsed');
+  setSidebarOpen(sidebarEl.classList.contains('collapsed'));
 });
+sidebarBackdrop.addEventListener('click', () => setSidebarOpen(false));
 
 document.querySelectorAll('.chip').forEach(chip => {
   chip.addEventListener('click', () => sendMessage(chip.dataset.prompt));
