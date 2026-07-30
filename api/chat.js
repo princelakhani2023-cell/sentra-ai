@@ -10,13 +10,19 @@
 //   1. Get a free Gemini API key (no credit card): https://aistudio.google.com/apikey
 //   2. In your Vercel project → Settings → Environment Variables, add:
 //        GEMINI_API_KEY = <your key>
+//   3. (Optional but recommended) Also add ALLOWED_ORIGIN = https://your-site.vercel.app
+//      to stop other websites from calling your backend directly. See _security.js.
 //   3. Deploy. The site will call this function automatically.
+
+const { rateLimit, checkOrigin } = require('./_security');
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed. Use POST.' });
     return;
   }
+  if (!checkOrigin(req, res)) return;
+  if (!rateLimit(req, res, { windowMs: 60000, max: 20 })) return;
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
@@ -34,6 +40,17 @@ module.exports = async (req, res) => {
 
   if (!Array.isArray(messages) || !messages.length) {
     res.status(400).json({ error: 'No messages provided.' });
+    return;
+  }
+  // Basic payload guards so a malicious caller can't send a huge body and
+  // rack up token costs or overwhelm the function.
+  if (messages.length > 60) {
+    res.status(400).json({ error: 'Too many messages in this conversation.' });
+    return;
+  }
+  const tooLong = messages.some(m => typeof m.content === 'string' && m.content.length > 12000);
+  if (tooLong) {
+    res.status(400).json({ error: 'One of the messages is too long.' });
     return;
   }
 
