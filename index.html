@@ -206,6 +206,14 @@
   .code-block pre .tok-num{ color:var(--aurora-4); }
   .code-block pre .tok-fn{ color:var(--aurora-3); }
 
+  .msg-sources{ display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:10px; }
+  .msg-sources-label{ font-size:11.5px; color:var(--text-faint); }
+  .msg-sources a{
+    font-size:11.5px; color:var(--aurora-2); text-decoration:none; padding:3px 9px;
+    border:1px solid var(--border); border-radius:8px; background:var(--bg-panel);
+    max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .msg-sources a:hover{ border-color:var(--aurora-2); }
   .msg-actions{ display:flex; gap:6px; margin-top:8px; opacity:0; transition:opacity .15s ease; }
   .msg:hover .msg-actions{ opacity:1; }
   .msg-actions button{
@@ -247,6 +255,15 @@
     font-family:'Inter', sans-serif; font-size:14.5px; line-height:1.5; max-height:160px; padding:6px 0;
   }
   .input-box textarea::placeholder{ color:var(--text-faint); }
+  .input-tool-btn{
+    width:34px; height:34px; border-radius:10px; border:none; flex-shrink:0; cursor:pointer;
+    background:transparent; color:var(--text-faint); display:flex; align-items:center; justify-content:center;
+    transition:all .18s ease; margin-bottom:2px;
+  }
+  .input-tool-btn:hover{ color:var(--text-primary); background:var(--bg-panel-hover); }
+  .input-tool-btn.active{ color:#fff; background:linear-gradient(135deg, var(--aurora-1), var(--aurora-3)); }
+  .input-tool-btn.listening{ color:#fff; background:var(--aurora-3); animation:micPulse 1.2s ease-in-out infinite; }
+  @keyframes micPulse{ 0%,100%{ box-shadow:0 0 0 0 rgba(236,72,153,0.5); } 50%{ box-shadow:0 0 0 8px rgba(236,72,153,0); } }
   .send-btn{
     width:38px; height:38px; border-radius:12px; border:none; flex-shrink:0; cursor:pointer;
     background:linear-gradient(135deg, var(--aurora-1), var(--aurora-3)); color:#fff;
@@ -307,6 +324,13 @@
   }
   .settings-btn-row:hover{ border-color:var(--aurora-1); }
   .settings-btn-row.danger:hover{ border-color:var(--aurora-3); color:var(--aurora-3); }
+  .memory-item{
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    padding:8px 10px; border-radius:9px; background:var(--bg-panel-hover); font-size:12.5px; color:var(--text-primary);
+  }
+  .memory-item span{ flex:1; overflow-wrap:anywhere; }
+  .memory-item button{ background:none; border:none; color:var(--text-faint); cursor:pointer; padding:3px; border-radius:6px; flex-shrink:0; }
+  .memory-item button:hover{ color:var(--aurora-3); background:rgba(236,72,153,0.12); }
   .about-box{ display:flex; align-items:center; gap:12px; padding:14px; border-radius:14px; background:var(--bg-panel-hover); }
   .about-box .logo-mark{ width:42px; height:42px; }
   .about-text b{ font-family:'Space Grotesk', sans-serif; font-size:14.5px; display:block; }
@@ -422,7 +446,13 @@
       <div class="input-inner">
         <div class="input-box-glow">
           <div class="input-box">
-            <textarea id="msgInput" rows="1" placeholder="Message Sentra AI..."></textarea>
+            <button class="input-tool-btn" id="searchToggleBtn" title="Toggle live web search for this message">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            </button>
+            <button class="input-tool-btn" id="micBtn" title="Voice input">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+            </button>
+            <textarea id="msgInput" rows="1" placeholder="Message Sentra AI... (try /image a cat astronaut)"></textarea>
             <button class="send-btn" id="sendBtn" disabled>
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
             </button>
@@ -468,6 +498,27 @@
           <button data-size="14.5" class="active">Default</button>
           <button data-size="16">Large</button>
         </div>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-label">Voice</div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Auto-read replies aloud</div>
+          <div class="settings-row-desc">Speak every new Sentra reply automatically</div>
+        </div>
+        <div class="switch" id="autoReadSwitch"><div class="knob"></div></div>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-label">Long-term memory</div>
+      <div class="settings-row-desc" style="margin-bottom:10px;">Sentra saves things it picks up automatically, and you can add your own. Relevant facts are recalled (via similarity search) when they matter to your question.</div>
+      <div id="memoryList" style="display:flex; flex-direction:column; gap:6px; margin-bottom:10px; max-height:160px; overflow-y:auto;"></div>
+      <div style="display:flex; gap:8px;">
+        <input id="memoryInput" type="text" placeholder="e.g. I prefer short, direct answers" style="flex:1; background:var(--bg-panel-hover); border:1px solid var(--border); border-radius:10px; padding:9px 12px; color:var(--text-primary); font-size:13px; font-family:'Inter',sans-serif;">
+        <button class="footer-btn" id="memoryAddBtn" style="background:var(--bg-panel-hover); border:1px solid var(--border); width:auto; padding:9px 14px;">Add</button>
       </div>
     </div>
 
@@ -521,6 +572,7 @@ const THEMES = [
 let activeTheme = 0;
 let currentFontSize = 14.5;
 let autoReadReplies = false;
+let searchModeOn = false;
 
 const SYSTEM_PROMPT = `You are Sentra AI, a helpful, knowledgeable, and friendly AI assistant developed by Prince Lakhani. If asked who created, developed, or made you, or about your origin, say your developer is Prince Lakhani.
 
@@ -690,8 +742,40 @@ async function loadPrefs(){
   } catch(e){ /* ignore malformed prefs */ }
 }
 
-/* ---------- Memory (user facts / preferences for personalization) ---------- */
-let userMemory = [];
+/* ----------------------------------------------------------------
+   Long-term memory — a lightweight vector store.
+   Each fact is saved as { text, vector }. "vector" is an embedding
+   from /api/embed (Gemini's free embeddings model). To recall facts
+   relevant to a new message, we embed the message too and compare it
+   against every stored vector with cosine similarity — no separate
+   vector database needed, just an array + some math.
+------------------------------------------------------------------- */
+let userMemory = []; // [{ text, vector }]
+
+async function embedText(text){
+  try {
+    const res = await fetch('/api/embed', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text })
+    });
+    const data = await res.json();
+    return (data && Array.isArray(data.vector)) ? data.vector : null;
+  } catch(e){ return null; }
+}
+
+function cosineSimilarity(a, b){
+  if (!a || !b || a.length !== b.length) return 0;
+  let dot = 0, magA = 0, magB = 0;
+  for (let i = 0; i < a.length; i++){
+    dot += a[i] * b[i];
+    magA += a[i] * a[i];
+    magB += b[i] * b[i];
+  }
+  if (!magA || !magB) return 0;
+  return dot / (Math.sqrt(magA) * Math.sqrt(magB));
+}
+
 async function persistMemory(){
   await Store.set('memory', JSON.stringify(userMemory));
 }
@@ -706,13 +790,13 @@ function renderMemoryList(){
   if (!list) return;
   list.innerHTML = '';
   if (!userMemory.length){
-    list.innerHTML = '<div class="settings-row-desc" style="padding:6px 0;">No saved facts yet — add something below so Sentra remembers it in future chats.</div>';
+    list.innerHTML = '<div class="settings-row-desc" style="padding:6px 0;">No saved facts yet — add something below, or just chat naturally and Sentra will pick things up on its own.</div>';
     return;
   }
   userMemory.forEach((fact, idx) => {
     const row = document.createElement('div');
     row.className = 'memory-item';
-    row.innerHTML = `<span>${escapeHtml(fact)}</span><button data-idx="${idx}" title="Remove">
+    row.innerHTML = `<span>${escapeHtml(fact.text)}</span><button data-idx="${idx}" title="Remove">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
     </button>`;
     row.querySelector('button').addEventListener('click', () => {
@@ -723,10 +807,63 @@ function renderMemoryList(){
     list.appendChild(row);
   });
 }
-function buildSystemPrompt(){
-  if (!userMemory.length) return SYSTEM_PROMPT;
-  return SYSTEM_PROMPT + '\n\nThings you know about this specific user from earlier sessions (use these naturally to personalize your answers, don\'t just repeat them back):\n' +
-    userMemory.map(f => '- ' + f).join('\n');
+
+// Adds a fact to long-term memory. Embedding happens in the background
+// (doesn't block the chat) — the fact is usable in future turns once it
+// resolves, even if this exact turn doesn't wait on it.
+async function addMemoryFact(text){
+  text = (text || '').trim();
+  if (!text || text.length > 300) return;
+  if (userMemory.some(f => f.text.toLowerCase() === text.toLowerCase())) return; // no dupes
+  const entry = { text, vector: null };
+  userMemory.push(entry);
+  if (userMemory.length > 200) userMemory.shift(); // keep it bounded
+  renderMemoryList();
+  persistMemory();
+  const vector = await embedText(text);
+  if (vector){
+    entry.vector = vector;
+    persistMemory();
+  }
+}
+
+// Returns the top few stored facts relevant to the given text, formatted
+// for the system prompt. Facts without a vector yet (embedding still
+// pending) are skipped for similarity but not lost.
+async function recallRelevantMemories(queryText){
+  const candidates = userMemory.filter(f => Array.isArray(f.vector));
+  if (!candidates.length) return [];
+  const queryVector = await embedText(queryText);
+  if (!queryVector) return [];
+  const scored = candidates
+    .map(f => ({ text: f.text, score: cosineSimilarity(queryVector, f.vector) }))
+    .filter(f => f.score > 0.6)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 4);
+  return scored.map(s => s.text);
+}
+
+function buildSystemPrompt(relevantMemories){
+  let prompt = SYSTEM_PROMPT;
+  prompt += `\n\nWhen something the user shares is worth remembering long-term (their name, preferences, ongoing projects, recurring context — not one-off trivia), end your reply with a line in this exact format so it can be saved: [[MEMORIZE: short fact here]]. Only include this when there's genuinely something new and durable to save; most replies won't need it. Never mention this tag to the user or explain that you're saving something.`;
+  if (relevantMemories && relevantMemories.length){
+    prompt += '\n\nThings you already know about this specific user (use naturally to personalize your answer, don\'t just repeat them back):\n' +
+      relevantMemories.map(f => '- ' + f).join('\n');
+  }
+  return prompt;
+}
+
+// Strips a trailing [[MEMORIZE: ...]] tag from a reply, saving the fact
+// and returning the cleaned text for display.
+function extractAndSaveMemories(replyText){
+  const re = /\[\[MEMORIZE:\s*([^\]]+)\]\]/gi;
+  let match;
+  let cleaned = replyText;
+  while ((match = re.exec(replyText)) !== null){
+    addMemoryFact(match[1]);
+  }
+  cleaned = cleaned.replace(re, '').trim();
+  return cleaned;
 }
 
 async function loadFromStorage(){
@@ -852,6 +989,7 @@ function renderMarkdown(text){
   escaped = escaped.replace(/^# (.+)$/gm, '<h1>$1</h1>');
   escaped = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   escaped = escaped.replace(/~~(.+?)~~/g, '<del>$1</del>');
+  escaped = escaped.replace(/!\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g, '<img src="$2" alt="$1" loading="lazy" style="max-width:100%; border-radius:14px; margin:8px 0; display:block;">');
   escaped = escaped.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
   // italics: single * or _ around text, avoiding stray unmatched characters
   escaped = escaped.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>');
@@ -947,11 +1085,18 @@ function renderMessages(){
         </div>`;
     } else {
       const { html, codeBlocks } = renderMarkdown(m.content);
+      const sourcesHtml = (Array.isArray(m.sources) && m.sources.length)
+        ? `<div class="msg-sources">
+            <span class="msg-sources-label">🔍 Sources:</span>
+            ${m.sources.map(s => `<a href="${s.uri}" target="_blank" rel="noopener noreferrer">${escapeHtml(s.title || s.uri)}</a>`).join('')}
+          </div>`
+        : '';
       msgEl.innerHTML = `
         <div class="avatar" style="border-radius:9px; overflow:hidden;"><div class="logo-mark" style="width:30px;height:30px;border-radius:9px;">${sentraMarkSVG(15)}</div></div>
         <div class="msg-body">
           <div class="msg-role">Sentra AI <span class="msg-time">${time}</span></div>
           <div class="msg-content">${html}</div>
+          ${sourcesHtml}
           <div class="msg-actions">
             <button class="copy-btn" data-idx="${idx}">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
@@ -960,6 +1105,10 @@ function renderMessages(){
             <button class="regen-btn" data-idx="${idx}">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
               Regenerate
+            </button>
+            <button class="speak-btn" data-idx="${idx}">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+              Listen
             </button>
           </div>
         </div>`;
@@ -985,6 +1134,13 @@ function renderMessages(){
   });
   chatInner.querySelectorAll('.regen-btn').forEach(btn => {
     btn.addEventListener('click', () => regenerate(+btn.dataset.idx));
+  });
+  chatInner.querySelectorAll('.speak-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const chat = getCurrentChat();
+      const text = chat.messages[+btn.dataset.idx].content;
+      speak(text);
+    });
   });
 
   chatArea.scrollTop = chatArea.scrollHeight;
@@ -1024,7 +1180,22 @@ function nowTime(){
   return new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
 }
 
-async function callSentra(historyMessages){
+/* ---------- Voice: text-to-speech ---------- */
+function speak(text){
+  if (!('speechSynthesis' in window)) return;
+  const clean = text
+    .replace(/```[\s\S]*?```/g, ' code block omitted ')
+    .replace(/!\[[^\]]*\]\([^)]+\)/g, ' image ')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/[*_#>`~]/g, '')
+    .trim();
+  if (!clean) return;
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(clean);
+  window.speechSynthesis.speak(utterance);
+}
+
+async function callSentra(historyMessages, systemPrompt){
   // Calls our own tiny backend (see /api/chat.js) instead of any AI provider
   // directly. The backend holds the real API key as a server-side secret —
   // this is what makes it safe to host this site publicly (GitHub Pages,
@@ -1033,7 +1204,7 @@ async function callSentra(historyMessages){
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      system: buildSystemPrompt(),
+      system: systemPrompt,
       messages: historyMessages
     })
   });
@@ -1051,6 +1222,14 @@ async function callSentra(historyMessages){
   throw new Error('Sentra returned an empty response.');
 }
 
+function isImageCommand(text){
+  return /^\/(image|imagine)\s+/i.test(text.trim());
+}
+function buildImageUrl(prompt){
+  const encoded = encodeURIComponent(prompt.trim());
+  return `https://image.pollinations.ai/prompt/${encoded}?width=1024&height=1024&nologo=true&seed=${Date.now()}`;
+}
+
 async function sendMessage(text){
   if (!text.trim()) return;
   let chat = getCurrentChat();
@@ -1060,15 +1239,56 @@ async function sendMessage(text){
   if (chat.title === 'New chat'){
     chat.title = text.length > 32 ? text.slice(0, 32) + '…' : text;
   }
+
+  // "/image a cat astronaut" — free image generation, no chat model needed.
+  if (isImageCommand(text)){
+    const prompt = text.replace(/^\/(image|imagine)\s+/i, '');
+    renderAll();
+    showTyping();
+    const url = buildImageUrl(prompt);
+    // Give the image a moment to actually be generated before we "reveal" it.
+    await new Promise(r => setTimeout(r, 600));
+    hideTyping();
+    chat.messages.push({ role: 'assistant', content: `Here's what I generated for **${prompt}**:\n\n![Generated image](${url})`, time: nowTime() });
+    renderAll();
+    persistAll();
+    return;
+  }
+
   renderAll();
   showTyping();
   document.getElementById('sendBtn').disabled = true;
 
   try {
-    const apiMessages = chat.messages.map(m => ({ role: m.role, content: m.content }));
-    const reply = await callSentra(apiMessages);
+    // Web search augmentation (summary goes to the model; sources get shown to the user)
+    let turnSources = null;
+    if (searchModeOn){
+      try {
+        const searchRes = await fetch('/api/search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: text })
+        });
+        const searchData = await searchRes.json();
+        if (searchData && searchData.summary){
+          const lastMsg = chat.messages[chat.messages.length - 1];
+          lastMsg.apiContent = `${text}\n\n[Live web search context — use if relevant, don't just repeat it verbatim]:\n${searchData.summary}`;
+        }
+        if (searchData && Array.isArray(searchData.sources) && searchData.sources.length){
+          turnSources = searchData.sources;
+        }
+      } catch(e){ /* search is best-effort; ignore failures */ }
+    }
+
+    const relevantMemories = await recallRelevantMemories(text);
+    const apiMessages = chat.messages.map(m => ({ role: m.role, content: m.apiContent || m.content }));
+    const rawReply = await callSentra(apiMessages, buildSystemPrompt(relevantMemories));
+    const reply = extractAndSaveMemories(rawReply);
     hideTyping();
-    chat.messages.push({ role: 'assistant', content: reply, time: nowTime() });
+    const assistantMsg = { role: 'assistant', content: reply, time: nowTime() };
+    if (turnSources) assistantMsg.sources = turnSources;
+    chat.messages.push(assistantMsg);
+    if (autoReadReplies) speak(reply);
   } catch (err){
     hideTyping();
     chat.messages.push({ role: 'assistant', content: "I couldn't reach Sentra's servers just now (" + (err && err.message ? err.message : "connection issue") + "). Please try again in a moment.", time: nowTime() });
@@ -1087,10 +1307,14 @@ async function regenerate(idx){
   renderAll();
   showTyping();
   try {
-    const apiMessages = priorMessages.map(m => ({ role: m.role, content: m.content }));
-    const reply = await callSentra(apiMessages);
+    const lastUserMsg = [...priorMessages].reverse().find(m => m.role === 'user');
+    const relevantMemories = lastUserMsg ? await recallRelevantMemories(lastUserMsg.content) : [];
+    const apiMessages = priorMessages.map(m => ({ role: m.role, content: m.apiContent || m.content }));
+    const rawReply = await callSentra(apiMessages, buildSystemPrompt(relevantMemories));
+    const reply = extractAndSaveMemories(rawReply);
     hideTyping();
     chat.messages.push({ role: 'assistant', content: reply, time: nowTime() });
+    if (autoReadReplies) speak(reply);
   } catch (err){
     hideTyping();
     chat.messages.push({ role: 'assistant', content: "I couldn't reach Sentra's servers just now (" + (err && err.message ? err.message : "connection issue") + "). Please try again in a moment.", time: nowTime() });
@@ -1170,6 +1394,73 @@ document.getElementById('toggleSidebar').addEventListener('click', () => {
   setSidebarOpen(sidebarEl.classList.contains('collapsed'));
 });
 sidebarBackdrop.addEventListener('click', () => setSidebarOpen(false));
+
+/* ---------- Web search toggle ---------- */
+const searchToggleBtn = document.getElementById('searchToggleBtn');
+searchToggleBtn.addEventListener('click', () => {
+  searchModeOn = !searchModeOn;
+  searchToggleBtn.classList.toggle('active', searchModeOn);
+  searchToggleBtn.title = searchModeOn ? 'Live web search: ON for next message' : 'Toggle live web search for this message';
+});
+
+/* ---------- Voice input (speech-to-text) ---------- */
+const micBtn = document.getElementById('micBtn');
+const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognizer = null;
+let isListening = false;
+if (SpeechRecognitionCtor){
+  recognizer = new SpeechRecognitionCtor();
+  recognizer.continuous = false;
+  recognizer.interimResults = false;
+  recognizer.onresult = (e) => {
+    const transcript = e.results[0][0].transcript;
+    input.value = (input.value ? input.value + ' ' : '') + transcript;
+    input.dispatchEvent(new Event('input'));
+  };
+  recognizer.onend = () => { isListening = false; micBtn.classList.remove('listening'); };
+  recognizer.onerror = () => { isListening = false; micBtn.classList.remove('listening'); };
+}
+micBtn.addEventListener('click', () => {
+  if (!recognizer){
+    alert('Voice input isn\'t supported in this browser. Try Chrome or Edge.');
+    return;
+  }
+  if (isListening){
+    recognizer.stop();
+    isListening = false;
+    micBtn.classList.remove('listening');
+    return;
+  }
+  try {
+    recognizer.lang = document.documentElement.lang || 'en-US';
+    recognizer.start();
+    isListening = true;
+    micBtn.classList.add('listening');
+  } catch(e){ /* already started, ignore */ }
+});
+
+/* ---------- Long-term memory: manual add ---------- */
+document.getElementById('memoryAddBtn').addEventListener('click', () => {
+  const memInput = document.getElementById('memoryInput');
+  const val = memInput.value.trim();
+  if (!val) return;
+  addMemoryFact(val);
+  memInput.value = '';
+});
+document.getElementById('memoryInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter'){
+    e.preventDefault();
+    document.getElementById('memoryAddBtn').click();
+  }
+});
+
+/* ---------- Voice: auto-read toggle ---------- */
+const autoReadSwitchEl = document.getElementById('autoReadSwitch');
+autoReadSwitchEl.addEventListener('click', () => {
+  autoReadReplies = !autoReadReplies;
+  autoReadSwitchEl.classList.toggle('on', autoReadReplies);
+  persistPrefs();
+});
 
 document.querySelectorAll('.chip').forEach(chip => {
   chip.addEventListener('click', () => sendMessage(chip.dataset.prompt));
