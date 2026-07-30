@@ -7,11 +7,17 @@
 // use fresh, cited information instead of relying on the model's training
 // data alone.
 
+const { rateLimit, checkOrigin } = require('./_security');
+
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed. Use POST.' });
     return;
   }
+  if (!checkOrigin(req, res)) return;
+  // Search grounding costs real money past the free monthly quota, so this
+  // one gets a tighter limit than plain chat.
+  if (!rateLimit(req, res, { windowMs: 60000, max: 8 })) return;
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
@@ -26,6 +32,10 @@ module.exports = async (req, res) => {
   const query = body && body.query;
   if (!query || typeof query !== 'string'){
     res.status(400).json({ error: 'No query provided.' });
+    return;
+  }
+  if (query.length > 500){
+    res.status(400).json({ error: 'Search query is too long.' });
     return;
   }
 
