@@ -7,11 +7,15 @@
 // just numbers stored alongside your chats, compared with plain cosine
 // similarity in the browser when a new message comes in.
 
+const { rateLimit, checkOrigin } = require('./_security');
+
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed. Use POST.' });
     return;
   }
+  if (!checkOrigin(req, res)) return;
+  if (!rateLimit(req, res, { windowMs: 60000, max: 30 })) return;
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
