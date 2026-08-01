@@ -14,7 +14,17 @@
 //      to stop other websites from calling your backend directly. See _security.js.
 //   3. Deploy. The site will call this function automatically.
 
-const { rateLimit, checkOrigin } = require('./_security');
+// Fails open (site still works) instead of crashing the whole function if
+// _security.js somehow isn't deployed alongside this file — a missing
+// helper file should never turn into "Sentra returned an unreadable
+// response" for every single message.
+let rateLimit = () => true;
+let checkOrigin = () => true;
+try {
+  ({ rateLimit, checkOrigin } = require('./_security'));
+} catch (e) {
+  console.error('Sentra: _security.js not found — running without rate limiting/origin checks.');
+}
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
