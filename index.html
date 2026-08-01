@@ -465,6 +465,13 @@
     <div class="settings-section">
       <div class="settings-section-label">Accent theme</div>
       <div class="theme-row" id="themeRow"></div>
+      <div class="settings-row" style="margin-top:6px;">
+        <div>
+          <div class="settings-row-label">Auto color cycle</div>
+          <div class="settings-row-desc">Accent colors shift on their own, live</div>
+        </div>
+        <div class="switch on" id="autoColorSwitch"><div class="knob"></div></div>
+      </div>
     </div>
 
     <div class="settings-section">
@@ -554,6 +561,7 @@ const THEMES = [
 let activeTheme = 0;
 let currentFontSize = 14.5;
 let autoReadReplies = false;
+let autoColorCycle = true;
 let searchModeOn = false;
 
 const SYSTEM_PROMPT = `You are Sentra AI, a helpful, knowledgeable, and friendly AI assistant developed by Prince Lakhani. If asked who created, developed, or made you, or about your origin, say your developer is Prince Lakhani.
@@ -592,8 +600,39 @@ function applyTheme(idx){
   document.documentElement.style.setProperty('--aurora-3', t.c[2]);
   document.documentElement.style.setProperty('--aurora-4', t.c[3]);
   document.querySelectorAll('.theme-swatch').forEach((el,i) => el.classList.toggle('active', i === idx));
+  // Picking a fixed palette and continuously auto-shifting colors don't
+  // make sense at the same time — picking one turns the other off.
+  if (autoColorCycle){
+    autoColorCycle = false;
+    const sw = document.getElementById('autoColorSwitch');
+    if (sw) sw.classList.remove('on');
+  }
   persistPrefs();
 }
+
+/* ---------- Auto color cycle: accent colors drift on their own ---------- */
+function hslToHex(h, s, l){
+  s /= 100; l /= 100;
+  const k = n => (n + h / 30) % 12;
+  const a = s * Math.min(l, 1 - l);
+  const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  const toHex = x => Math.round(255 * x).toString(16).padStart(2, '0');
+  return `#${toHex(f(0))}${toHex(f(8))}${toHex(f(4))}`;
+}
+const COLOR_CYCLE_DURATION_MS = 26000; // one full trip around the color wheel
+let colorCycleStart = Date.now();
+function tickColorCycle(){
+  if (autoColorCycle){
+    const elapsed = (Date.now() - colorCycleStart) % COLOR_CYCLE_DURATION_MS;
+    const baseHue = (elapsed / COLOR_CYCLE_DURATION_MS) * 360;
+    document.documentElement.style.setProperty('--aurora-1', hslToHex(baseHue, 75, 62));
+    document.documentElement.style.setProperty('--aurora-2', hslToHex((baseHue + 80) % 360, 70, 55));
+    document.documentElement.style.setProperty('--aurora-3', hslToHex((baseHue + 190) % 360, 75, 60));
+    document.documentElement.style.setProperty('--aurora-4', hslToHex((baseHue + 280) % 360, 70, 62));
+  }
+  requestAnimationFrame(tickColorCycle);
+}
+requestAnimationFrame(tickColorCycle);
 
 function renderThemeSwatches(){
   const row = document.getElementById('themeRow');
@@ -691,14 +730,21 @@ async function persistAll(){
 }
 
 async function persistPrefs(){
-  await Store.set('prefs', JSON.stringify({ themeIndex: activeTheme, lightMode, fontSize: currentFontSize, autoRead: autoReadReplies }));
+  await Store.set('prefs', JSON.stringify({ themeIndex: activeTheme, lightMode, fontSize: currentFontSize, autoRead: autoReadReplies, autoColor: autoColorCycle }));
 }
 async function loadPrefs(){
   try {
     const res = await Store.get('prefs');
     if (!res || !res.value) return;
     const prefs = JSON.parse(res.value);
-    if (typeof prefs.themeIndex === 'number') applyTheme(prefs.themeIndex);
+    if (typeof prefs.autoColor === 'boolean'){
+      autoColorCycle = prefs.autoColor;
+      const acSw = document.getElementById('autoColorSwitch');
+      if (acSw) acSw.classList.toggle('on', autoColorCycle);
+    }
+    // A saved fixed theme index only matters when auto-cycling is off —
+    // otherwise the cycle would just immediately override it anyway.
+    if (typeof prefs.themeIndex === 'number' && !autoColorCycle) applyTheme(prefs.themeIndex);
     if (prefs.lightMode){
       lightMode = true;
       document.documentElement.setAttribute('data-theme', 'light');
@@ -1451,6 +1497,15 @@ const autoReadSwitchEl = document.getElementById('autoReadSwitch');
 autoReadSwitchEl.addEventListener('click', () => {
   autoReadReplies = !autoReadReplies;
   autoReadSwitchEl.classList.toggle('on', autoReadReplies);
+  persistPrefs();
+});
+
+/* ---------- Auto color cycle toggle ---------- */
+const autoColorSwitchEl = document.getElementById('autoColorSwitch');
+autoColorSwitchEl.addEventListener('click', () => {
+  autoColorCycle = !autoColorCycle;
+  autoColorSwitchEl.classList.toggle('on', autoColorCycle);
+  if (autoColorCycle) colorCycleStart = Date.now(); // resume smoothly from the top
   persistPrefs();
 });
 
