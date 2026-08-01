@@ -36,7 +36,7 @@ module.exports = async (req, res) => {
   if (typeof body === 'string') {
     try { body = JSON.parse(body); } catch (e) { body = {}; }
   }
-  const { system, messages } = body || {};
+  const { system, messages, preferLite } = body || {};
 
   if (!Array.isArray(messages) || !messages.length) {
     res.status(400).json({ error: 'No messages provided.' });
@@ -72,7 +72,16 @@ module.exports = async (req, res) => {
   // free-tier Flash model, so this won't break every time a dated model
   // (like gemini-2.5-flash) gets retired. A couple of dated fallbacks are
   // kept behind it just in case the alias itself is ever unavailable.
-  const MODEL_CANDIDATES = ['gemini-flash-latest', 'gemini-3.6-flash', 'gemini-2.5-flash'];
+  //
+  // When preferLite is true (user turned on "High-volume mode" in Settings),
+  // we try the Flash-Lite line first instead — same free-tier, no billing
+  // needed, but Google gives Flash-Lite a noticeably higher free RPM/RPD
+  // quota than regular Flash, in exchange for a bit less depth on hard
+  // questions. Good trade for someone who's hitting rate limits and wants
+  // to stay on the free tier rather than enable billing.
+  const MODEL_CANDIDATES = preferLite
+    ? ['gemini-flash-lite-latest', 'gemini-3.1-flash-lite', 'gemini-2.5-flash-lite', 'gemini-flash-latest']
+    : ['gemini-flash-latest', 'gemini-3.6-flash', 'gemini-2.5-flash'];
 
   let lastError = null;
   for (const model of MODEL_CANDIDATES){
