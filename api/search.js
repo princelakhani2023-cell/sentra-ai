@@ -7,7 +7,13 @@
 // use fresh, cited information instead of relying on the model's training
 // data alone.
 
-const { rateLimit, checkOrigin } = require('./_security');
+let rateLimit = () => true;
+let checkOrigin = () => true;
+try {
+  ({ rateLimit, checkOrigin } = require('./_security'));
+} catch (e) {
+  console.error('Sentra: _security.js not found — running without rate limiting/origin checks.');
+}
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
