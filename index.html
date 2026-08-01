@@ -510,11 +510,29 @@
 
     <div class="settings-section">
       <div class="settings-section-label">Long-term memory</div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Enable long-term memory</div>
+          <div class="settings-row-desc">Uses one extra free-tier API call per message — turn off to save quota</div>
+        </div>
+        <div class="switch on" id="memoryEnabledSwitch"><div class="knob"></div></div>
+      </div>
       <div class="settings-row-desc" style="margin-bottom:10px;">Sentra saves things it picks up automatically, and you can add your own. Relevant facts are recalled (via similarity search) when they matter to your question.</div>
       <div id="memoryList" style="display:flex; flex-direction:column; gap:6px; margin-bottom:10px; max-height:160px; overflow-y:auto;"></div>
       <div style="display:flex; gap:8px;">
         <input id="memoryInput" type="text" placeholder="e.g. I prefer short, direct answers" style="flex:1; background:var(--bg-panel-hover); border:1px solid var(--border); border-radius:10px; padding:9px 12px; color:var(--text-primary); font-size:13px; font-family:'Inter',sans-serif;">
         <button class="footer-btn" id="memoryAddBtn" style="background:var(--bg-panel-hover); border:1px solid var(--border); width:auto; padding:9px 14px;">Add</button>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-label">Usage</div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">High-volume mode</div>
+          <div class="settings-row-desc">Uses a lighter free-tier model with a much higher daily limit — good if you're hitting "too many requests" errors and want to stay free rather than enable billing. Slightly less depth on hard questions/code.</div>
+        </div>
+        <div class="switch" id="highVolumeSwitch"><div class="knob"></div></div>
       </div>
     </div>
 
@@ -563,6 +581,8 @@ let activeTheme = 0;
 let currentFontSize = 14.5;
 let autoReadReplies = false;
 let autoColorCycle = true;
+let memoryEnabled = true;
+let highVolumeMode = false;
 let searchModeOn = false;
 
 const SYSTEM_PROMPT = `You are Sentra AI, a helpful, knowledgeable, and friendly AI assistant developed by Prince Lakhani. If asked who created, developed, or made you, or about your origin, say your developer is Prince Lakhani.
@@ -731,13 +751,23 @@ async function persistAll(){
 }
 
 async function persistPrefs(){
-  await Store.set('prefs', JSON.stringify({ themeIndex: activeTheme, lightMode, fontSize: currentFontSize, autoRead: autoReadReplies, autoColor: autoColorCycle }));
+  await Store.set('prefs', JSON.stringify({ themeIndex: activeTheme, lightMode, fontSize: currentFontSize, autoRead: autoReadReplies, autoColor: autoColorCycle, memoryEnabled, highVolumeMode }));
 }
 async function loadPrefs(){
   try {
     const res = await Store.get('prefs');
     if (!res || !res.value) return;
     const prefs = JSON.parse(res.value);
+    if (typeof prefs.highVolumeMode === 'boolean'){
+      highVolumeMode = prefs.highVolumeMode;
+      const hvSw = document.getElementById('highVolumeSwitch');
+      if (hvSw) hvSw.classList.toggle('on', highVolumeMode);
+    }
+    if (typeof prefs.memoryEnabled === 'boolean'){
+      memoryEnabled = prefs.memoryEnabled;
+      const memSw = document.getElementById('memoryEnabledSwitch');
+      if (memSw) memSw.classList.toggle('on', memoryEnabled);
+    }
     if (typeof prefs.autoColor === 'boolean'){
       autoColorCycle = prefs.autoColor;
       const acSw = document.getElementById('autoColorSwitch');
@@ -835,6 +865,7 @@ function renderMemoryList(){
 // (doesn't block the chat) — the fact is usable in future turns once it
 // resolves, even if this exact turn doesn't wait on it.
 async function addMemoryFact(text){
+  if (!memoryEnabled) return;
   text = (text || '').trim();
   if (!text || text.length > 300) return;
   if (userMemory.some(f => f.text.toLowerCase() === text.toLowerCase())) return; // no dupes
@@ -854,6 +885,7 @@ async function addMemoryFact(text){
 // for the system prompt. Facts without a vector yet (embedding still
 // pending) are skipped for similarity but not lost.
 async function recallRelevantMemories(queryText){
+  if (!memoryEnabled) return []; // skips the embed API call entirely — saves quota
   const candidates = userMemory.filter(f => Array.isArray(f.vector));
   if (!candidates.length) return [];
   const queryVector = await embedText(queryText);
@@ -868,7 +900,9 @@ async function recallRelevantMemories(queryText){
 
 function buildSystemPrompt(relevantMemories){
   let prompt = SYSTEM_PROMPT;
-  prompt += `\n\nWhen something the user shares is worth remembering long-term (their name, preferences, ongoing projects, recurring context — not one-off trivia), end your reply with a line in this exact format so it can be saved: [[MEMORIZE: short fact here]]. Only include this when there's genuinely something new and durable to save; most replies won't need it. Never mention this tag to the user or explain that you're saving something.`;
+  if (memoryEnabled){
+    prompt += `\n\nWhen something the user shares is worth remembering long-term (their name, preferences, ongoing projects, recurring context — not one-off trivia), end your reply with a line in this exact format so it can be saved: [[MEMORIZE: short fact here]]. Only include this when there's genuinely something new and durable to save; most replies won't need it. Never mention this tag to the user or explain that you're saving something.`;
+  }
   if (relevantMemories && relevantMemories.length){
     prompt += '\n\nThings you already know about this specific user (use naturally to personalize your answer, don\'t just repeat them back):\n' +
       relevantMemories.map(f => '- ' + f).join('\n');
@@ -1231,7 +1265,8 @@ async function callSentra(historyMessages, systemPrompt){
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       system: systemPrompt,
-      messages: historyMessages
+      messages: historyMessages,
+      preferLite: highVolumeMode
     })
   });
   let data;
@@ -1479,6 +1514,18 @@ micBtn.addEventListener('click', () => {
 });
 
 /* ---------- Long-term memory: manual add ---------- */
+const highVolumeSwitchEl = document.getElementById('highVolumeSwitch');
+highVolumeSwitchEl.addEventListener('click', () => {
+  highVolumeMode = !highVolumeMode;
+  highVolumeSwitchEl.classList.toggle('on', highVolumeMode);
+  persistPrefs();
+});
+const memoryEnabledSwitchEl = document.getElementById('memoryEnabledSwitch');
+memoryEnabledSwitchEl.addEventListener('click', () => {
+  memoryEnabled = !memoryEnabled;
+  memoryEnabledSwitchEl.classList.toggle('on', memoryEnabled);
+  persistPrefs();
+});
 document.getElementById('memoryAddBtn').addEventListener('click', () => {
   const memInput = document.getElementById('memoryInput');
   const val = memInput.value.trim();
