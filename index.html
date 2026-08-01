@@ -1271,7 +1271,9 @@ async function callSentra(historyMessages, systemPrompt){
   });
   let data;
   try { data = await response.json(); }
-  catch(e){ throw new Error('Sentra returned an unreadable response.'); }
+  catch(e){
+    throw new Error(`Backend returned status ${response.status} but not valid JSON — this usually means a file is missing from your Vercel deployment (check that api/chat.js, api/search.js, api/embed.js, and api/_security.js are all present) or the function crashed. Check the Vercel project's Function Logs for the exact error.`);
+  }
 
   if (!response.ok){
     const apiMsg = data && data.error ? data.error : `Request failed (status ${response.status}).`;
