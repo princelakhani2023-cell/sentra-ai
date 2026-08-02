@@ -1115,6 +1115,7 @@ function renderMessages(){
   const topbarTitle = document.getElementById('topbarTitle');
   const chatArea = document.getElementById('chatArea');
   const mainEl = document.querySelector('.main');
+  const wasNearBottom = isNearBottom(chatArea, 150);
   chatInner.innerHTML = '';
 
   if (!chat || chat.messages.length === 0){
@@ -1141,8 +1142,9 @@ function renderMessages(){
           <div class="msg-content">${escapeHtml(m.content)}</div>
         </div>`;
     } else {
-      const { html, codeBlocks } = renderMarkdown(m.content);
-      const sourcesHtml = (Array.isArray(m.sources) && m.sources.length)
+      const isPending = !!m.pendingReveal;
+      const { html, codeBlocks } = isPending ? { html: '', codeBlocks: [] } : renderMarkdown(m.content);
+      const sourcesHtml = (!isPending && Array.isArray(m.sources) && m.sources.length)
         ? `<div class="msg-sources">
             <span class="msg-sources-label">🔍 Sources:</span>
             ${m.sources.filter(s => /^https?:\/\//i.test(s.uri || '')).map(s => `<a href="${escapeHtml(s.uri)}" target="_blank" rel="noopener noreferrer">${escapeHtml(s.title || s.uri)}</a>`).join('')}
@@ -1152,9 +1154,9 @@ function renderMessages(){
         <div class="avatar" style="border-radius:9px; overflow:hidden;"><div class="logo-mark" style="width:30px;height:30px;border-radius:9px;">${sentraMarkSVG(19)}</div></div>
         <div class="msg-body">
           <div class="msg-role">Sentra AI <span class="msg-time">${time}</span></div>
-          <div class="msg-content">${html}</div>
+          <div class="msg-content"${isPending ? ' id="revealTarget"' : ''}>${html}</div>
           ${sourcesHtml}
-          <div class="msg-actions">
+          <div class="msg-actions" style="${isPending ? 'display:none;' : ''}">
             <button class="copy-btn" data-idx="${idx}">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
               Copy
@@ -1203,7 +1205,7 @@ function renderMessages(){
     chatInner.querySelectorAll('.logo-mark').forEach(el => attachTilt(el, 12));
   }
 
-  chatArea.scrollTop = chatArea.scrollHeight;
+  chatArea.scrollTop = wasNearBottom ? chatArea.scrollHeight : chatArea.scrollTop;
 }
 
 function flashCopied(btn, resetLabel){
@@ -1238,6 +1240,43 @@ function renderAll(){
 
 function nowTime(){
   return new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+}
+
+/* ---------- Auto-scroll that respects the reader ---------- */
+// Only snaps to bottom if the user was already near the bottom — so
+// scrolling up to re-read earlier messages doesn't get yanked away.
+function isNearBottom(el, threshold = 120){
+  return el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
+}
+function scrollToBottomIfNear(){
+  const chatArea = document.getElementById('chatArea');
+  if (isNearBottom(chatArea)) chatArea.scrollTop = chatArea.scrollHeight;
+}
+
+/* ---------- Typewriter reveal for new replies (like watching Sentra type) ---------- */
+function typewriterReveal(fullText, onDone){
+  const target = document.getElementById('revealTarget');
+  if (!target){ onDone(); return; }
+  const chatArea = document.getElementById('chatArea');
+  const wasNearBottom = isNearBottom(chatArea, 200);
+
+  // Longer replies read in bigger bites so a 2000-character answer doesn't
+  // take forever, while short replies still feel like natural typing.
+  const totalDuration = Math.min(2600, Math.max(500, fullText.length * 6));
+  const stepMs = 16;
+  const totalSteps = Math.max(1, Math.round(totalDuration / stepMs));
+  const charsPerStep = Math.max(1, Math.ceil(fullText.length / totalSteps));
+
+  let shown = 0;
+  const timer = setInterval(() => {
+    shown = Math.min(fullText.length, shown + charsPerStep);
+    target.textContent = fullText.slice(0, shown);
+    if (wasNearBottom) scrollToBottomIfNear();
+    if (shown >= fullText.length){
+      clearInterval(timer);
+      onDone();
+    }
+  }, stepMs);
 }
 
 /* ---------- Voice: text-to-speech ---------- */
@@ -1361,10 +1400,18 @@ async function sendMessage(text){
     const rawReply = await callSentra(apiMessages, buildSystemPrompt(relevantMemories));
     const reply = extractAndSaveMemories(rawReply);
     hideTyping();
-    const assistantMsg = { role: 'assistant', content: reply, time: nowTime() };
+    const assistantMsg = { role: 'assistant', content: reply, time: nowTime(), pendingReveal: true };
     if (turnSources) assistantMsg.sources = turnSources;
     chat.messages.push(assistantMsg);
+    renderAll();
+    document.getElementById('sendBtn').disabled = input.value.trim().length === 0;
+    typewriterReveal(reply, () => {
+      delete assistantMsg.pendingReveal;
+      renderAll();
+      persistAll();
+    });
     if (autoReadReplies) speak(reply);
+    return;
   } catch (err){
     hideTyping();
     chat.messages.push({ role: 'assistant', content: "I couldn't reach Sentra's servers just now (" + (err && err.message ? err.message : "connection issue") + "). Please try again in a moment.", time: nowTime() });
@@ -1389,8 +1436,16 @@ async function regenerate(idx){
     const rawReply = await callSentra(apiMessages, buildSystemPrompt(relevantMemories));
     const reply = extractAndSaveMemories(rawReply);
     hideTyping();
-    chat.messages.push({ role: 'assistant', content: reply, time: nowTime() });
+    const assistantMsg = { role: 'assistant', content: reply, time: nowTime(), pendingReveal: true };
+    chat.messages.push(assistantMsg);
+    renderAll();
+    typewriterReveal(reply, () => {
+      delete assistantMsg.pendingReveal;
+      renderAll();
+      persistAll();
+    });
     if (autoReadReplies) speak(reply);
+    return;
   } catch (err){
     hideTyping();
     chat.messages.push({ role: 'assistant', content: "I couldn't reach Sentra's servers just now (" + (err && err.message ? err.message : "connection issue") + "). Please try again in a moment.", time: nowTime() });
