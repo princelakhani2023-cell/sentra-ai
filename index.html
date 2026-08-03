@@ -358,6 +358,23 @@
     .chip{ font-size:13px; padding:9px 13px; }
     /* iOS Safari zooms the page in if a focused input's font-size is under 16px */
     .input-box textarea{ font-size:16px; }
+
+    /* ---- Performance: blur filters and backdrop-filter are expensive on
+       mobile GPUs, and they were the main source of jank. Keep the same
+       visual idea but much cheaper: smaller/fewer blurred layers, no
+       backdrop-filter, background blobs pinned in place instead of animating. */
+    .blob{ filter:blur(50px); opacity:0.28; animation:none !important; }
+    .topbar{ backdrop-filter:none; background:rgba(10,13,24,0.92); }
+    html[data-theme="light"] .topbar{ backdrop-filter:none; background:rgba(244,245,251,0.95); }
+    .input-box-glow::after{ display:none; } /* drop the blurred glow halo, keep the crisp ring */
+    .input-box-glow::before{ filter:none; }
+    .ambient{ transform:none !important; } /* parallax needs mousemove, which touch doesn't give anyway */
+  }
+
+  /* Respect the OS-level "reduce motion" accessibility setting everywhere */
+  @media (prefers-reduced-motion: reduce){
+    .blob, .logo-mark svg, .input-box-glow::before, .input-box-glow::after,
+    .status-dot, .typing span, .brand-mark{ animation:none !important; }
   }
 </style>
 </head>
@@ -569,6 +586,11 @@
 
 <script>
 let chats = [];
+// Caches parsed markdown/highlighting per message object so re-rendering
+// the whole conversation (which happens on every state change) doesn't
+// re-parse messages that haven't changed. Keyed by object reference, so it
+// never touches — and never bloats — the actual persisted chat data.
+const messageRenderCache = new WeakMap();
 let currentChatId = null;
 
 const THEMES = [
@@ -651,9 +673,13 @@ function tickColorCycle(){
     document.documentElement.style.setProperty('--aurora-3', hslToHex((baseHue + 190) % 360, 75, 60));
     document.documentElement.style.setProperty('--aurora-4', hslToHex((baseHue + 280) % 360, 70, 62));
   }
-  requestAnimationFrame(tickColorCycle);
 }
-requestAnimationFrame(tickColorCycle);
+// The hue drifts slowly (26s per full loop), so updating ~8x/sec looks just
+// as smooth as 60x/sec but costs far less — this one change alone removes
+// most of the recurring style-recalculation load, which is where mobile
+// jank from this feature was actually coming from.
+setInterval(tickColorCycle, 120);
+tickColorCycle();
 
 function renderThemeSwatches(){
   const row = document.getElementById('themeRow');
@@ -1143,7 +1169,23 @@ function renderMessages(){
         </div>`;
     } else {
       const isPending = !!m.pendingReveal;
-      const { html, codeBlocks } = isPending ? { html: '', codeBlocks: [] } : renderMarkdown(m.content);
+      let html, codeBlocks;
+      if (isPending){
+        html = ''; codeBlocks = [];
+      } else {
+        const cached = messageRenderCache.get(m);
+        if (cached && cached.forContent === m.content){
+          // Content hasn't changed since last render — skip re-parsing
+          // markdown/highlighting entirely. This is the difference between
+          // "recompute the whole conversation on every render" (janky on a
+          // long chat, especially on mobile) and "only compute new stuff."
+          html = cached.html;
+          codeBlocks = cached.codeBlocks;
+        } else {
+          ({ html, codeBlocks } = renderMarkdown(m.content));
+          messageRenderCache.set(m, { forContent: m.content, html, codeBlocks });
+        }
+      }
       const sourcesHtml = (!isPending && Array.isArray(m.sources) && m.sources.length)
         ? `<div class="msg-sources">
             <span class="msg-sources-label">🔍 Sources:</span>
