@@ -63,12 +63,32 @@ module.exports = async (req, res) => {
     res.status(400).json({ error: 'One of the messages is too long.' });
     return;
   }
+  const tooManyImages = messages.some(m => Array.isArray(m.images) && m.images.length > 2);
+  if (tooManyImages) {
+    res.status(400).json({ error: 'Too many images on one message.' });
+    return;
+  }
 
   // Gemini uses "user" / "model" roles instead of "user" / "assistant".
-  const contents = messages.map(m => ({
-    role: m.role === 'assistant' ? 'model' : 'user',
-    parts: [{ text: String(m.content || '') }]
-  }));
+  // A message can optionally carry `images`: an array of
+  // { mimeType, base64 } for vision input (webcam frames, photo uploads).
+  const contents = messages.map(m => {
+    const parts = [{ text: String(m.content || '') }];
+    if (Array.isArray(m.images)){
+      for (const img of m.images){
+        if (img && typeof img.base64 === 'string' && typeof img.mimeType === 'string'){
+          // ~6MB base64 ceiling keeps a single request from ballooning.
+          if (img.base64.length < 6_000_000){
+            parts.push({ inline_data: { mime_type: img.mimeType, data: img.base64 } });
+          }
+        }
+      }
+    }
+    return {
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts
+    };
+  });
 
   const geminiBody = {
     contents,
