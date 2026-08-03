@@ -197,6 +197,20 @@
     font-family:'Inter', sans-serif;
   }
   .code-block-header .copy-code-btn:hover{ color:var(--text-primary); border-color:var(--aurora-2); }
+  .code-block-header .run-code-btn{
+    background:linear-gradient(135deg, var(--aurora-1), var(--aurora-3)); border:none; color:#fff; border-radius:6px;
+    padding:4px 10px; font-size:11px; cursor:pointer; display:flex; align-items:center; gap:5px; transition:all .15s ease;
+    font-family:'Inter', sans-serif; font-weight:600;
+  }
+  .code-block-header .run-code-btn:hover{ filter:brightness(1.12); }
+  .code-block-header .run-code-btn:disabled{ opacity:0.5; cursor:wait; }
+  .code-output{
+    border-top:1px solid var(--border); background:#050710; padding:12px 16px;
+    font-family:'JetBrains Mono', monospace; font-size:12.5px; line-height:1.6; color:#c9cdea;
+    white-space:pre-wrap; word-break:break-word; max-height:260px; overflow-y:auto;
+  }
+  .code-output.error{ color:#ff8080; }
+  .code-output iframe{ width:100%; min-height:220px; border:none; border-radius:8px; background:#fff; }
   .code-block pre{
     margin:0; padding:14px 16px; overflow-x:auto; font-family:'JetBrains Mono', monospace;
     font-size:13px; line-height:1.6; color:#d8dcf5;
@@ -264,6 +278,25 @@
   .input-tool-btn:hover{ color:var(--text-primary); background:var(--bg-panel-hover); }
   .input-tool-btn.active{ color:#fff; background:linear-gradient(135deg, var(--aurora-1), var(--aurora-3)); }
   .input-tool-btn.listening{ color:#fff; background:var(--aurora-3); animation:micPulse 1.2s ease-in-out infinite; }
+
+  #cameraPanel{
+    position:fixed; bottom:100px; right:20px; width:220px; z-index:40;
+    background:var(--bg-panel); border:1px solid var(--border); border-radius:16px; overflow:hidden;
+    box-shadow:0 20px 50px -15px rgba(0,0,0,0.6); animation:popIn .2s ease;
+  }
+  #cameraPanel video{ width:100%; display:block; aspect-ratio:4/3; object-fit:cover; background:#000; }
+  #cameraCaption{
+    padding:9px 12px; font-size:12px; line-height:1.4; color:var(--text-primary);
+    background:var(--bg-panel); min-height:34px;
+  }
+  #cameraCloseBtn{
+    position:absolute; top:8px; right:8px; width:26px; height:26px; border-radius:50%;
+    background:rgba(0,0,0,0.55); color:#fff; border:none; cursor:pointer; font-size:14px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  @media (max-width:760px){
+    #cameraPanel{ right:12px; bottom:120px; width:150px; }
+  }
   @keyframes micPulse{ 0%,100%{ box-shadow:0 0 0 0 rgba(236,72,153,0.5); } 50%{ box-shadow:0 0 0 8px rgba(236,72,153,0); } }
   .send-btn{
     width:38px; height:38px; border-radius:12px; border:none; flex-shrink:0; cursor:pointer;
@@ -458,6 +491,12 @@
             <button class="input-tool-btn" id="micBtn" title="Voice input">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
             </button>
+            <button class="input-tool-btn" id="voiceModeBtn" title="Real-time voice conversation — talk and Sentra replies out loud, hands-free">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+            </button>
+            <button class="input-tool-btn" id="cameraBtn" title="Live camera — Sentra describes what it sees">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+            </button>
             <textarea id="msgInput" rows="1" placeholder="Message Sentra AI... (try /image a cat astronaut)"></textarea>
             <button class="send-btn" id="sendBtn" disabled>
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
@@ -624,7 +663,11 @@ When your answer involves code, follow these rules closely:
 - If the user's request is ambiguous, briefly state the assumption you're making and proceed, rather than only asking questions.
 - Never truncate code mid-way; if a solution is long, keep it complete and well organized rather than cutting it off.
 - Match the language/framework conventions the user is using (e.g. ES6+ for modern JS, type hints for Python if the user's code uses them, PEP8 style, etc.).
-- When fixing or reviewing code the user shared, show the corrected code and briefly explain what was wrong, rather than only describing the fix in prose.`;
+- When fixing or reviewing code the user shared, show the corrected code and briefly explain what was wrong, rather than only describing the fix in prose.
+
+Cultural and local context: assume an Indian, often Gujarati-speaking, user by default unless context clearly says otherwise. Use ₹ (INR) for money and give Indian-relevant price context when discussing costs; use the Indian numbering style (lakh/crore) where natural alongside or instead of million/billion; use DD/MM/YYYY dates; default examples, festivals, food, holidays, and cultural references to Indian/Gujarati ones (e.g. Diwali, Navratri, Uttarayan, Gujarati thali, regional festivals) rather than Western defaults, when the topic calls for an example. If asked about local matters (colleges, transit, government processes, weather, prices) and no web search context was provided, answer from general knowledge but note that a live search would give more current specifics. Don't force cultural references where they don't fit — this is about defaulting sensibly, not sprinkling references into every answer.
+
+If the user's message includes a line starting with "[LIVE CAMERA FRAME]", it means an image was just captured from their webcam for a live-description session, not something they uploaded on purpose — describe what's visible naturally and briefly (like a running commentary), without treating it as a formal image-analysis request.`;
 
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
 
@@ -1116,18 +1159,30 @@ function renderMarkdown(text){
   });
   closeList(); closeQuote();
 
+  const RUNNABLE_LANGS = { javascript:'js', js:'js', html:'html', python:'python', py:'python' };
   html = html.replace(/§CODEBLOCK(\d+)§/g, (m, idx) => {
     const block = codeBlocks[+idx];
     const highlighted = highlightCode(block.code, block.lang);
-    return `<div class="code-block">
+    const runKind = RUNNABLE_LANGS[(block.lang || '').toLowerCase()];
+    const runBtn = runKind
+      ? `<button class="run-code-btn" data-code-idx="${idx}" data-run-kind="${runKind}">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
+          Run
+        </button>`
+      : '';
+    return `<div class="code-block" data-lang="${escapeHtml(block.lang)}">
       <div class="code-block-header">
         <span>${escapeHtml(block.lang)}</span>
-        <button class="copy-code-btn" data-code-idx="${idx}">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-          Copy code
-        </button>
+        <div style="display:flex; gap:6px;">
+          ${runBtn}
+          <button class="copy-code-btn" data-code-idx="${idx}">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            Copy code
+          </button>
+        </div>
       </div>
       <pre>${highlighted}</pre>
+      <div class="code-output" style="display:none;"></div>
     </div>`;
   });
 
@@ -1233,6 +1288,44 @@ function renderMessages(){
       navigator.clipboard.writeText(code).then(() => flashCopied(btn, 'Copy code'));
     });
   });
+  chatInner.querySelectorAll('.run-code-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const msgEl = btn.closest('.msg');
+      const blocks = JSON.parse(msgEl.dataset.codeBlocks || '[]');
+      const code = blocks[+btn.dataset.codeIdx]?.code || '';
+      const kind = btn.dataset.runKind;
+      const block = btn.closest('.code-block');
+      const outputEl = block.querySelector('.code-output');
+      outputEl.style.display = 'block';
+      outputEl.classList.remove('error');
+      btn.disabled = true;
+      const originalLabel = btn.innerHTML;
+      btn.innerHTML = 'Running…';
+
+      try {
+        if (kind === 'html'){
+          outputEl.innerHTML = '';
+          const iframe = document.createElement('iframe');
+          iframe.sandbox = 'allow-scripts';
+          iframe.srcdoc = code;
+          outputEl.appendChild(iframe);
+        } else if (kind === 'js'){
+          outputEl.textContent = 'Running…';
+          const result = await runJsCode(code);
+          outputEl.textContent = result;
+        } else if (kind === 'python'){
+          outputEl.textContent = 'Loading Python runtime (first run only, ~15MB)…';
+          const result = await runPythonCode(code);
+          outputEl.textContent = result;
+        }
+      } catch(e){
+        outputEl.classList.add('error');
+        outputEl.textContent = 'Error: ' + (e && e.message ? e.message : String(e));
+      }
+      btn.disabled = false;
+      btn.innerHTML = originalLabel;
+    });
+  });
   chatInner.querySelectorAll('.regen-btn').forEach(btn => {
     btn.addEventListener('click', () => regenerate(+btn.dataset.idx));
   });
@@ -1248,6 +1341,90 @@ function renderMessages(){
   }
 
   chatArea.scrollTop = wasNearBottom ? chatArea.scrollHeight : chatArea.scrollTop;
+}
+
+/* ---------- Direct code execution ---------- */
+// Runs JS in a sandboxed, isolated iframe (no allow-same-origin, so it can't
+// touch this page, its storage, or cookies) and pipes console output back
+// via postMessage. Fully client-side, free, no server involved.
+function runJsCode(code){
+  return new Promise((resolve) => {
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.setAttribute('sandbox', 'allow-scripts');
+    document.body.appendChild(iframe);
+    const logs = [];
+    let finished = false;
+
+    const cleanup = () => {
+      if (finished) return;
+      finished = true;
+      window.removeEventListener('message', handler);
+      if (document.body.contains(iframe)) iframe.remove();
+      resolve(logs.length ? logs.join('\n') : '(no output — use console.log to print something)');
+    };
+
+    const handler = (e) => {
+      if (e.source !== iframe.contentWindow || !e.data) return;
+      if (e.data.type === 'sentra-log') logs.push(e.data.msg);
+      if (e.data.type === 'sentra-done') cleanup();
+    };
+    window.addEventListener('message', handler);
+
+    const escapedCode = code.replace(/<\/script/gi, '<\\/script');
+    iframe.srcdoc = `<script>
+      const send = (type, msg) => parent.postMessage({ type, msg }, '*');
+      const fmt = (args) => args.map(a => {
+        try { return typeof a === 'object' && a !== null ? JSON.stringify(a) : String(a); }
+        catch(e){ return String(a); }
+      }).join(' ');
+      console.log = (...a) => send('sentra-log', fmt(a));
+      console.error = (...a) => send('sentra-log', 'Error: ' + fmt(a));
+      console.warn = (...a) => send('sentra-log', 'Warning: ' + fmt(a));
+      console.info = (...a) => send('sentra-log', fmt(a));
+      window.onerror = (msg) => { send('sentra-log', 'Uncaught error: ' + msg); send('sentra-done'); return true; };
+      try {
+        ${escapedCode}
+      } catch (e) {
+        send('sentra-log', 'Error: ' + (e && e.message ? e.message : String(e)));
+      }
+      send('sentra-done');
+    <\/script>`;
+
+    setTimeout(cleanup, 6000); // safety net for infinite loops / hangs
+  });
+}
+
+// Lazy-loads Pyodide (real Python compiled to WebAssembly) from a free CDN
+// only the first time someone runs Python — after that it's cached by the
+// browser. No backend needed; this all happens on the visitor's device.
+let pyodideLoadPromise = null;
+function loadPyodideRuntime(){
+  if (!pyodideLoadPromise){
+    pyodideLoadPromise = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/pyodide/v0.26.1/full/pyodide.js';
+      script.onload = async () => {
+        try { resolve(await window.loadPyodide()); }
+        catch(e){ reject(e); }
+      };
+      script.onerror = () => reject(new Error('Could not load the Python runtime (check your connection).'));
+      document.head.appendChild(script);
+    });
+  }
+  return pyodideLoadPromise;
+}
+async function runPythonCode(code){
+  const py = await loadPyodideRuntime();
+  let output = '';
+  py.setStdout({ batched: (s) => { output += s + '\n'; } });
+  py.setStderr({ batched: (s) => { output += s + '\n'; } });
+  try {
+    await py.runPythonAsync(code);
+    return output || '(no output — use print() to show something)';
+  } catch (e) {
+    return output + 'Error: ' + (e && e.message ? e.message : String(e));
+  }
 }
 
 function flashCopied(btn, resetLabel){
@@ -1322,17 +1499,21 @@ function typewriterReveal(fullText, onDone){
 }
 
 /* ---------- Voice: text-to-speech ---------- */
-function speak(text){
-  if (!('speechSynthesis' in window)) return;
+function speak(text, onEnd){
+  if (!('speechSynthesis' in window)){ if (onEnd) onEnd(); return; }
   const clean = text
     .replace(/```[\s\S]*?```/g, ' code block omitted ')
     .replace(/!\[[^\]]*\]\([^)]+\)/g, ' image ')
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
     .replace(/[*_#>`~]/g, '')
     .trim();
-  if (!clean) return;
+  if (!clean){ if (onEnd) onEnd(); return; }
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(clean);
+  if (onEnd){
+    utterance.onend = onEnd;
+    utterance.onerror = onEnd;
+  }
   window.speechSynthesis.speak(utterance);
 }
 
@@ -1452,7 +1633,7 @@ async function sendMessage(text){
       renderAll();
       persistAll();
     });
-    if (autoReadReplies) speak(reply);
+    if (autoReadReplies || voiceModeOn) speak(reply, voiceModeOn ? () => { if (voiceModeOn) startVoiceListening(); } : undefined);
     return;
   } catch (err){
     hideTyping();
@@ -1486,7 +1667,7 @@ async function regenerate(idx){
       renderAll();
       persistAll();
     });
-    if (autoReadReplies) speak(reply);
+    if (autoReadReplies || voiceModeOn) speak(reply, voiceModeOn ? () => { if (voiceModeOn) startVoiceListening(); } : undefined);
     return;
   } catch (err){
     hideTyping();
@@ -1587,11 +1768,32 @@ if (SpeechRecognitionCtor){
   recognizer.interimResults = false;
   recognizer.onresult = (e) => {
     const transcript = e.results[0][0].transcript;
-    input.value = (input.value ? input.value + ' ' : '') + transcript;
-    input.dispatchEvent(new Event('input'));
+    if (voiceModeOn){
+      voiceModeBtn.classList.remove('listening');
+      sendMessage(transcript);
+    } else {
+      input.value = (input.value ? input.value + ' ' : '') + transcript;
+      input.dispatchEvent(new Event('input'));
+    }
   };
-  recognizer.onend = () => { isListening = false; micBtn.classList.remove('listening'); };
-  recognizer.onerror = () => { isListening = false; micBtn.classList.remove('listening'); };
+  recognizer.onend = () => {
+    isListening = false;
+    micBtn.classList.remove('listening');
+  };
+  recognizer.onerror = (e) => {
+    isListening = false;
+    micBtn.classList.remove('listening');
+    if (voiceModeOn){
+      voiceModeBtn.classList.remove('listening');
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed'){
+        voiceModeOn = false;
+        voiceModeBtn.classList.remove('active');
+        alert('Microphone access was blocked — voice conversation mode turned off.');
+      } else if (e.error === 'no-speech' || e.error === 'aborted'){
+        setTimeout(() => { if (voiceModeOn) startVoiceListening(); }, 500);
+      }
+    }
+  };
 }
 micBtn.addEventListener('click', () => {
   if (!recognizer){
@@ -1610,6 +1812,124 @@ micBtn.addEventListener('click', () => {
     isListening = true;
     micBtn.classList.add('listening');
   } catch(e){ /* already started, ignore */ }
+});
+
+/* ---------- Real-time voice conversation mode ---------- */
+const voiceModeBtn = document.getElementById('voiceModeBtn');
+let voiceModeOn = false;
+
+function startVoiceListening(){
+  if (!recognizer || !voiceModeOn) return;
+  try {
+    recognizer.lang = document.documentElement.lang || 'en-US';
+    recognizer.start();
+    voiceModeBtn.classList.add('listening');
+  } catch(e){ /* already running — ignore */ }
+}
+
+voiceModeBtn.addEventListener('click', () => {
+  if (!recognizer){
+    alert('Voice conversation isn\'t supported in this browser. Try Chrome or Edge.');
+    return;
+  }
+  voiceModeOn = !voiceModeOn;
+  voiceModeBtn.classList.toggle('active', voiceModeOn);
+  window.speechSynthesis.cancel();
+  if (voiceModeOn){
+    startVoiceListening();
+  } else {
+    try { recognizer.stop(); } catch(e){ /* ignore */ }
+    voiceModeBtn.classList.remove('listening');
+  }
+});
+
+/* ---------- Live camera: near-real-time frame description ---------- */
+const cameraBtn = document.getElementById('cameraBtn');
+let cameraStream = null;
+let cameraCaptureTimer = null;
+let cameraBusy = false;
+let cameraVideoEl = null;
+
+function stopCameraMode(){
+  if (cameraCaptureTimer) clearInterval(cameraCaptureTimer);
+  cameraCaptureTimer = null;
+  if (cameraStream){
+    cameraStream.getTracks().forEach(t => t.stop());
+    cameraStream = null;
+  }
+  const panel = document.getElementById('cameraPanel');
+  if (panel) panel.remove();
+  cameraBtn.classList.remove('active');
+}
+
+async function captureAndDescribeFrame(){
+  if (cameraBusy || !cameraVideoEl || !cameraVideoEl.videoWidth) return;
+  cameraBusy = true;
+  const captionEl = document.getElementById('cameraCaption');
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = 480;
+    canvas.height = Math.round(480 * (cameraVideoEl.videoHeight / cameraVideoEl.videoWidth));
+    canvas.getContext('2d').drawImage(cameraVideoEl, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+    const base64 = dataUrl.split(',')[1];
+
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system: 'You are describing a live webcam feed in one short, natural sentence — like a quiet running commentary. No markdown, no preamble, just the sentence.',
+        messages: [{
+          role: 'user',
+          content: '[LIVE CAMERA FRAME] Describe what is visible right now, briefly.',
+          images: [{ mimeType: 'image/jpeg', base64 }]
+        }]
+      })
+    });
+    const data = await response.json();
+    if (captionEl){
+      captionEl.textContent = (data && data.reply) ? data.reply : (data && data.error) || 'Could not describe this frame.';
+    }
+  } catch(e){
+    if (captionEl) captionEl.textContent = 'Connection issue reading the camera.';
+  }
+  cameraBusy = false;
+}
+
+async function startCameraMode(){
+  try {
+    cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+  } catch(e){
+    alert('Could not access the camera — check your browser/device permissions.');
+    return;
+  }
+  const panel = document.createElement('div');
+  panel.id = 'cameraPanel';
+  panel.innerHTML = `
+    <video autoplay muted playsinline></video>
+    <div id="cameraCaption">Watching…</div>
+    <button id="cameraCloseBtn" title="Stop camera">✕</button>
+  `;
+  document.body.appendChild(panel);
+  cameraVideoEl = panel.querySelector('video');
+  cameraVideoEl.srcObject = cameraStream;
+  panel.querySelector('#cameraCloseBtn').addEventListener('click', () => {
+    stopCameraMode();
+  });
+
+  // Sampling every few seconds rather than a true continuous stream — that's
+  // the honest, free way to do this without a video-streaming backend.
+  cameraCaptureTimer = setInterval(captureAndDescribeFrame, 4000);
+  setTimeout(captureAndDescribeFrame, 800);
+}
+
+cameraBtn.addEventListener('click', () => {
+  if (cameraStream){
+    stopCameraMode();
+  } else {
+    cameraBtn.classList.add('active');
+    startCameraMode();
+  }
 });
 
 /* ---------- Long-term memory: manual add ---------- */
